@@ -1,0 +1,461 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Premium Light Theme Color Palette */
+  --primary: #4f46e5;
+  --primary-rgb: 79, 70, 229;
+  --primary-hover: #4338ca;
+  --secondary: #0ea5e9;
+  --secondary-rgb: 14, 165, 233;
+  --accent: #f43f5e;
+  --success: #10b981;
+  --warning: #f59e0b;
+  
+  --bg-primary: #fafbfe;
+  --bg-secondary: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-dark: #0f172a;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-light: #ffffff;
+  
+  --border-color: #e2e8f0;
+  --border-focus: #cbd5e1;
+  
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+  
+  --shadow-sm: 0 2px 8px -1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 16px -6px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.02);
+  --shadow-glow: 0 0 30px rgba(79, 70, 229, 0.15);
+  
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+  
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: var(--transition-fast);
+}
+
+/* Glassmorphism Styles */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: var(--shadow-sm);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-normal);
+}
+
+.glass-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(79, 70, 229, 0.15);
+}
+
+/* Base Layout and Container Utilities */
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.section {
+  padding: 100px 0;
+  position: relative;
+}
+
+/* Mesh Background Effects */
+.mesh-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 600px;
+  background: radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.05) 0%, transparent 40%),
+              radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.06) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Premium Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), #6366f1);
+  color: var(--text-light);
+  padding: 12px 28px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+  opacity: 0;
+  transition: var(--transition-fast);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px 0 rgba(79, 70, 229, 0.35);
+}
+
+.btn-primary:hover::after {
+  opacity: 1;
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 12px 28px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: var(--border-focus);
+  transform: translateY(-2px);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badge-primary {
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--primary);
+}
+
+/* Credit Card Designs */
+.virtual-card {
+  width: 340px;
+  height: 215px;
+  border-radius: 16px;
+  padding: 24px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 15px 35px -5px rgba(0, 0, 0, 0.25),
+    0 5px 15px -5px rgba(0, 0, 0, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.15s ease-out, box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+  cursor: pointer;
+  
+  /* Initial values for custom glare properties */
+  --glare-x: 50%;
+  --glare-y: 50%;
+}
+
+.virtual-card:hover {
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.35),
+    0 10px 20px -5px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+/* Glass glare reflection */
+.card-glare {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    circle at var(--glare-x) var(--glare-y),
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 30%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Plastic texture */
+.card-texture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.05;
+  background-image: radial-gradient(rgba(255,255,255,0.15) 1px, transparent 0),
+                    radial-gradient(rgba(255,255,255,0.15) 1px, transparent 0);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 2;
+}
+
+.card-brand-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.card-logo {
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.card-middle-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 2;
+  margin-top: 4px;
+}
+
+.card-chip {
+  width: 44px;
+  height: 33px;
+  background: linear-gradient(135deg, #d4af37 0%, #ffd700 50%, #aa7c11 100%);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.chip-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background-image: 
+    linear-gradient(to right, transparent 50%, rgba(0, 0, 0, 0.15) 50%),
+    linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.15) 50%);
+  background-size: 10px 100%, 100% 8px;
+}
+
+.card-contactless {
+  color: rgba(255, 255, 255, 0.8);
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+}
+
+.card-number-wrapper {
+  margin: 10px 0;
+  z-index: 2;
+}
+
+/* Embossed 3D font styling */
+.card-number-embossed {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  word-spacing: 2px;
+  color: #f1f5f9;
+  text-shadow: 
+    -1px -1px 0px rgba(0, 0, 0, 0.8),
+    1px 1px 1px rgba(255, 255, 255, 0.25),
+    1px 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  z-index: 2;
+}
+
+.card-holder-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-label {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 3px;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+
+.card-holder-name-embossed {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f1f5f9;
+  text-shadow: 
+    -1px -1px 0px rgba(0, 0, 0, 0.8),
+    1px 1px 1px rgba(255, 255, 255, 0.25),
+    1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.card-meta-hologram-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.card-meta {
+  display: flex;
+  gap: 16px;
+}
+
+.card-expiry-info, .card-cvv-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.card-expiry-val-embossed, .card-cvv-val-embossed {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  text-shadow: 
+    -1px -1px 0px rgba(0, 0, 0, 0.8),
+    1px 1px 1px rgba(255, 255, 255, 0.25),
+    1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Hologram sticker styling */
+.card-hologram {
+  width: 34px;
+  height: 26px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, 
+    #a1c4fd 0%, 
+    #c2e9fb 25%, 
+    #e0c3fc 50%, 
+    #fbc2eb 75%, 
+    #a1c4fd 100%
+  );
+  background-size: 200% 200%;
+  box-shadow: 
+    inset 0 0 4px rgba(255, 255, 255, 0.6), 
+    0 1px 2px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.hologram-inner {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg, 
+    transparent 30%, 
+    rgba(255, 255, 255, 0.5) 50%, 
+    transparent 70%
+  );
+  animation: hologram-drift 5s linear infinite;
+}
+
+@keyframes hologram-drift {
+  0% {
+    transform: translate(-30%, -30%) rotate(0deg);
+  }
+  100% {
+    transform: translate(10%, 10%) rotate(360deg);
+  }
+}
