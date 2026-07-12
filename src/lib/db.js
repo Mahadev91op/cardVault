@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 import dns from 'dns';
 
-// Force DNS resolution order to IPv4 first to prevent querySrv ECONNREFUSED on Windows
-if (process.platform === 'win32' && dns.setDefaultResultOrder) {
+// Force DNS resolution order to IPv4 first to prevent querySrv ECONNREFUSED issues (e.g. on Windows and Vercel/Node 17+)
+if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
 
