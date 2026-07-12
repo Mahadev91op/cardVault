@@ -2,15 +2,17 @@ import mongoose from 'mongoose';
 import dns from 'dns';
 
 // Force DNS resolution order to IPv4 first to prevent querySrv ECONNREFUSED on Windows
-if (dns.setDefaultResultOrder) {
+if (process.platform === 'win32' && dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
 
 // Set DNS servers to Google and Cloudflare DNS to avoid querySrv ECONNREFUSED issues on local Windows networks
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (err) {
-  console.warn('Failed to set custom DNS servers:', err);
+if (process.platform === 'win32' && process.env.NODE_ENV === 'development') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch (err) {
+    console.warn('Failed to set custom DNS servers:', err);
+  }
 }
 
 const MONGODB_URI = process.env.MONGODB_URI;
