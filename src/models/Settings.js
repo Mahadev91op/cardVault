@@ -29,6 +29,14 @@ const SettingsSchema = new mongoose.Schema({
   globalDiscount: {
     type: Number,
     default: 0, // percentage discount
+  },
+  upiId: {
+    type: String,
+    default: 'mahadevtanti191@okaxis',
+  },
+  usdToInrRate: {
+    type: Number,
+    default: 83,
   }
 }, {
   timestamps: true

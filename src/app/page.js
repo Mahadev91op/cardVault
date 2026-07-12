@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import AuthModals from '@/components/AuthModals';
 import CreditCard from '@/components/CreditCard';
+import PaymentModal from '@/components/PaymentModal';
 import {
   Shield,
   Zap,
@@ -59,6 +60,8 @@ export default function Home() {
   const [purchaseLoading, setPurchaseLoading] = useState(null);
   const [notification, setNotification] = useState(null);
   const [dynamicSettings, setDynamicSettings] = useState(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPaymentCard, setSelectedPaymentCard] = useState(null);
 
   // Refs for animations
   const heroTitleRef = useRef(null);
@@ -139,19 +142,27 @@ export default function Home() {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  const handleBuyCard = async (card) => {
+  const handleBuyCard = (card) => {
     if (!user) {
       showToast('Please sign in or register to purchase cards', 'warning');
       handleOpenAuth('signin');
       return;
     }
+    setSelectedPaymentCard(card);
+    setPaymentModalOpen(true);
+  };
+
+  const handleConfirmPayment = async (utrNumber) => {
+    if (!selectedPaymentCard) return;
 
     try {
-      setPurchaseLoading(card._id);
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardId: card._id })
+        body: JSON.stringify({
+          cardId: selectedPaymentCard._id,
+          utrNumber: utrNumber
+        })
       });
       const data = await res.json();
 
@@ -163,22 +174,19 @@ export default function Home() {
           origin: { y: 0.6 }
         });
 
-        showToast('Order created! Follow steps below to verify your payment.', 'success');
-        
-        // Refresh cards list to update stock/quantity
-        fetchCards();
+        showToast('Payment submitted! Admin will verify and release details shortly.', 'success');
+        setPaymentModalOpen(false);
+        fetchCards(); // refresh quantities
 
         // Redirect to orders profile page after 2 seconds
         setTimeout(() => {
           router.push('/profile/orders');
         }, 2200);
       } else {
-        showToast(data.error || 'Failed to place order', 'error');
+        throw new Error(data.error || 'Failed to place order');
       }
     } catch (error) {
-      showToast('Network error, please try again.', 'error');
-    } finally {
-      setPurchaseLoading(null);
+      throw new Error(error.message || 'Network error occurred');
     }
   };
 
@@ -370,7 +378,7 @@ export default function Home() {
                     <div className="card-buy-action">
                       <div className="card-price-info">
                         <span className="price-label">Entry Fee</span>
-                        <span className="price-val">${card.entryFee}</span>
+                        <span className="price-val">₹{card.entryFee}</span>
                       </div>
                       <button
                         className="btn-buy"
@@ -544,6 +552,16 @@ export default function Home() {
         type={authType}
         onClose={() => setAuthOpen(false)}
         onToggleType={handleToggleAuthType}
+      />
+
+      {/* UPI Payment Modal */}
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        card={selectedPaymentCard}
+        upiId={dynamicSettings?.upiId}
+        usdToInrRate={dynamicSettings?.usdToInrRate}
+        onSubmit={handleConfirmPayment}
       />
 
       <style jsx global>{`

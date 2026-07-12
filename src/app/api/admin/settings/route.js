@@ -30,12 +30,14 @@ export async function PUT(request) {
       'announcementText',
       'announcementActive',
       'maintenanceMode',
-      'globalDiscount'
+      'globalDiscount',
+      'upiId',
+      'usdToInrRate'
     ];
 
     allowedFields.forEach(field => {
       if (body[field] !== undefined) {
-        if (field === 'globalDiscount') {
+        if (field === 'globalDiscount' || field === 'usdToInrRate') {
           settings[field] = Number(body[field]);
         } else if (field === 'announcementActive' || field === 'maintenanceMode') {
           settings[field] = body[field] === true || body[field] === 'true';

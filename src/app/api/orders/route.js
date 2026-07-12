@@ -36,10 +36,33 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Please log in to purchase cards' }, { status: 401 });
     }
 
-    const { cardId } = await request.json();
+    const { cardId, utrNumber } = await request.json();
 
     if (!cardId) {
       return NextResponse.json({ success: false, error: 'Card ID is required' }, { status: 400 });
+    }
+
+    if (!utrNumber || utrNumber.trim() === '') {
+      return NextResponse.json({ success: false, error: 'UPI Transaction UTR / Ref Number is required' }, { status: 400 });
+    }
+
+    const cleanUtr = utrNumber.replace(/\s+/g, '');
+    
+    // Check length and numeric pattern (exactly 12 digits)
+    if (!/^\d{12}$/.test(cleanUtr)) {
+      return NextResponse.json({ success: false, error: 'Invalid UTR format. Must be exactly 12 numeric digits.' }, { status: 400 });
+    }
+
+    // Check year code (first digit matches calendar year last digit, e.g., 6 for 2026)
+    const currentYearLastDigit = new Date().getFullYear().toString().slice(-1);
+    if (cleanUtr[0] !== currentYearLastDigit) {
+      return NextResponse.json({ success: false, error: `Invalid UTR. For transactions in ${new Date().getFullYear()}, the Ref No. must start with the digit ${currentYearLastDigit}.` }, { status: 400 });
+    }
+
+    // Check if this UTR has already been submitted to prevent duplicate entries
+    const duplicateUtr = await Order.findOne({ utrNumber: cleanUtr });
+    if (duplicateUtr) {
+      return NextResponse.json({ success: false, error: 'This UTR reference number has already been used for another purchase request.' }, { status: 400 });
     }
 
     // Verify card exists and is in stock
@@ -84,6 +107,7 @@ export async function POST(request) {
       cardId: card._id,
       status: 'pending',
       pricePaid: card.entryFee,
+      utrNumber: cleanUtr,
       releasedCardDetails: {
         number: randomCardNum,
         expiry: card.type === 'rupay' ? '12/30' : '08/30',

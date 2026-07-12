@@ -67,7 +67,9 @@ export default function AdminDashboard() {
     announcementText: 'Welcome to CardVault! Verify payments via Telegram support.',
     announcementActive: true,
     maintenanceMode: false,
-    globalDiscount: 0
+    globalDiscount: 0,
+    upiId: 'mahadevtanti191@okaxis',
+    usdToInrRate: 83
   });
 
   const [loadingData, setLoadingData] = useState(true);
@@ -582,7 +584,7 @@ export default function AdminDashboard() {
                   <div className="stat-card">
                     <div className="stat-info">
                       <span className="stat-card-label">Total Revenue</span>
-                      <span className="stat-card-value">${stats.totalSales}</span>
+                      <span className="stat-card-value">₹{stats.totalSales}</span>
                     </div>
                     <div className="stat-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.08)', color: 'var(--success)' }}>
                       <DollarSign size={24} />
@@ -909,6 +911,11 @@ export default function AdminDashboard() {
                                 <td>
                                   <div style={{ fontWeight: 'bold' }}>{order.userId?.username || 'Deleted User'}</div>
                                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.userId?.email || 'N/A'}</div>
+                                  {order.utrNumber && (
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '4px', fontWeight: 'bold' }}>
+                                      UTR: <code style={{ background: 'rgba(79,70,229,0.06)', padding: '2px 4px', borderRadius: '4px' }}>{order.utrNumber}</code>
+                                    </div>
+                                  )}
                                 </td>
                                 <td>
                                   <div style={{ fontWeight: 'bold' }}>{order.cardId?.name || 'Deleted Card'}</div>
@@ -916,7 +923,7 @@ export default function AdminDashboard() {
                                     {order.cardId?.type || 'N/A'}
                                   </div>
                                 </td>
-                                <td style={{ fontWeight: 'bold' }}>${order.pricePaid} USD</td>
+                                <td style={{ fontWeight: 'bold' }}>₹{order.pricePaid} INR</td>
                                 <td>
                                   {order.status === 'pending' && <span className="status-pill status-pending">Pending Verification</span>}
                                   {order.status === 'completed' && <span className="status-pill status-completed">Completed</span>}
@@ -969,13 +976,19 @@ export default function AdminDashboard() {
                                 <span className="label">Buyer:</span>
                                 <span className="val">{order.userId?.username || 'Deleted User'} ({order.userId?.email || 'N/A'})</span>
                               </div>
+                              {order.utrNumber && (
+                                <div className="mobile-card-row" style={{ background: 'rgba(79, 70, 229, 0.04)', padding: '4px 6px', borderRadius: '4px', marginTop: '4px' }}>
+                                  <span className="label" style={{ color: 'var(--primary)' }}>UTR / Ref No:</span>
+                                  <span className="val font-bold" style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{order.utrNumber}</span>
+                                </div>
+                              )}
                               <div className="mobile-card-row">
                                 <span className="label">Card Product:</span>
                                 <span className="val">{order.cardId?.name || 'Deleted Card'} ({order.cardId?.type || 'N/A'})</span>
                               </div>
                               <div className="mobile-card-row">
                                 <span className="label">Entry Fee:</span>
-                                <span className="val font-bold">${order.pricePaid} USD</span>
+                                <span className="val font-bold">₹{order.pricePaid} INR</span>
                               </div>
                               {order.status === 'completed' && (
                                 <div className="mobile-card-row release-details">
@@ -1069,7 +1082,7 @@ export default function AdminDashboard() {
                             <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{card.name}</div>
                             <div>Type: <strong style={{ textTransform: 'capitalize' }}>{card.type}</strong></div>
                             <div>Limit: <strong>{card.limit}</strong></div>
-                            <div>Fee: <strong>${card.entryFee} USD</strong></div>
+                            <div>Fee: <strong>₹{card.entryFee} INR</strong></div>
                             <div>Stock: <strong style={{ color: card.qty < 10 ? 'var(--accent)' : 'inherit' }}>{card.qty} units</strong></div>
                           </div>
                           <div className="admin-card-actions">
@@ -1332,6 +1345,22 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  <div className="settings-section-title" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', marginTop: '10px' }}>
+                    <Sliders size={16} color="var(--primary)" /> UPI Payment Settings
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Admin UPI ID (for QR / Intent)</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      value={settings.upiId || ''}
+                      onChange={(e) => handleSettingsChange('upiId', e.target.value)}
+                      placeholder="e.g. mahadevtanti191@okaxis"
+                      required
+                    />
+                  </div>
+
                   <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button type="submit" className="btn-primary" disabled={submitLoading} style={{ minWidth: '130px', padding: '12px 24px', borderRadius: '8px' }}>
                       {submitLoading ? <Loader2 size={16} className="animate-spin" /> : 'Save Site Settings'}
@@ -1484,7 +1513,7 @@ export default function AdminDashboard() {
 
                 <div className="admin-form-row">
                   <div className="admin-form-group">
-                    <label className="admin-form-label">Entry Fee (USD Price)</label>
+                    <label className="admin-form-label">Entry Fee (INR Price / ₹)</label>
                     <input
                       type="number"
                       className="admin-form-input"
@@ -1559,7 +1588,10 @@ export default function AdminDashboard() {
                 <div>Order ID: <strong style={{ fontFamily: 'monospace' }}>{selectedOrder._id}</strong></div>
                 <div>Buyer: <strong>{selectedOrder.userId?.username} ({selectedOrder.userId?.email})</strong></div>
                 <div>Product: <strong>{selectedOrder.cardId?.name} ({selectedOrder.cardId?.type})</strong></div>
-                <div>Due Payment: <strong style={{ color: 'var(--primary)' }}>${selectedOrder.pricePaid} USD</strong></div>
+                <div>Due Payment: <strong style={{ color: 'var(--primary)' }}>₹{selectedOrder.pricePaid} INR</strong></div>
+                {selectedOrder.utrNumber && (
+                  <div>Payment UTR: <strong style={{ color: 'var(--success)', fontFamily: 'monospace', background: 'rgba(16, 185, 129, 0.06)', padding: '2px 6px', borderRadius: '4px' }}>{selectedOrder.utrNumber}</strong></div>
+                )}
               </div>
 
               <div className="admin-form" style={{ gap: '14px' }}>

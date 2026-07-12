@@ -20,6 +20,10 @@ const OrderSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  utrNumber: {
+    type: String,
+    default: '',
+  },
   releasedCardDetails: {
     number: String,
     expiry: String,

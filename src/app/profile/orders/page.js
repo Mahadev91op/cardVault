@@ -263,7 +263,7 @@ export default function ProfileOrders() {
                           </div>
                           <div className="info-box">
                             <span className="info-label">Fee Paid</span>
-                            <span className="info-val">${order.pricePaid} USD</span>
+                            <span className="info-val">₹{order.pricePaid} INR</span>
                           </div>
 
                           {isCompleted && (
@@ -301,7 +301,7 @@ export default function ProfileOrders() {
                           <div className="order-actions-bar">
                             <span className="action-instruction-text">
                               <AlertCircle size={16} color="var(--warning)" />
-                              Send screenshot of transaction (${order.pricePaid} USD) to verify.
+                              Send screenshot of transaction (₹{order.pricePaid} INR) to verify.
                             </span>
                             <a 
                               href={telegramLink} 

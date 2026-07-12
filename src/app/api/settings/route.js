@@ -11,10 +11,16 @@ export async function GET() {
     
     // Seed default settings if none exist
     if (!settings) {
-      settings = await Settings.create({});
+      settings = await Settings.create({
+        upiId: 'mahadevtanti191@okaxis'
+      });
     } else {
       // Guarantee exactly one configuration document in the collection
       await Settings.deleteMany({ _id: { $ne: settings._id } });
+      if (!settings.upiId) {
+        settings.upiId = 'mahadevtanti191@okaxis';
+        await settings.save();
+      }
     }
 
     return NextResponse.json({ success: true, settings }, { status: 200 });
