@@ -265,6 +265,35 @@ export default function ProfileOrders() {
                             <span className="info-label">Fee Paid</span>
                             <span className="info-val">${order.pricePaid} USD</span>
                           </div>
+
+                          {isCompleted && (
+                            <>
+                              <div className="info-box" style={{ gridColumn: 'span 2' }}>
+                                <span className="info-label">Card Number</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '1rem', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                  {displayNum}
+                                  <button onClick={() => handleCopy(displayNum, `${order._id}-num`)} style={{ color: 'var(--primary)', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Copy Card Number">
+                                    <Copy size={13} />
+                                  </button>
+                                  {copySuccess === `${order._id}-num` && <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 'bold' }}>Copied!</span>}
+                                </span>
+                              </div>
+                              <div className="info-box">
+                                <span className="info-label">Expiry Date</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>{displayExpiry}</span>
+                              </div>
+                              <div className="info-box">
+                                <span className="info-label">CVV Code</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {displayCvv}
+                                  <button onClick={() => handleCopy(displayCvv, `${order._id}-cvv`)} style={{ color: 'var(--primary)', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Copy CVV">
+                                    <Copy size={13} />
+                                  </button>
+                                  {copySuccess === `${order._id}-cvv` && <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 'bold' }}>Copied!</span>}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
 
                         {/* Dynamic Action instruction bar */}

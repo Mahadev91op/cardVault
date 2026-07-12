@@ -52,6 +52,20 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Card is out of stock' }, { status: 400 });
     }
 
+    // Prevent duplicate purchases of the same card by the same user (pending or completed)
+    const existingOrder = await Order.findOne({
+      userId: userPayload.id,
+      cardId: card._id,
+      status: { $in: ['pending', 'completed'] }
+    });
+
+    if (existingOrder) {
+      const errorMsg = existingOrder.status === 'completed'
+        ? 'You have already purchased this card. Check "My Orders" for details.'
+        : 'You already have a pending order for this card. Please verify payment.';
+      return NextResponse.json({ success: false, error: errorMsg }, { status: 400 });
+    }
+
     // Decrement card quantity
     card.qty -= 1;
     await card.save();
