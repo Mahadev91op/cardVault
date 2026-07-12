@@ -234,7 +234,7 @@
 /* Cards Grid */
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 32px;
 }
 
@@ -640,56 +640,90 @@
     color: var(--primary);
   }
 
-  /* Marketplace Cards list adjustments */
+  /* Marketplace Cards list adjustments - Swipeable Horizontal Carousel */
   .cards-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-    padding: 0 8px;
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    scroll-behavior: smooth !important;
+    gap: 16px !important;
+    padding: 10px 16px 24px 16px !important; /* bottom padding for shadow visibility */
+    margin-left: -16px !important; /* expand to screen edge */
+    margin-right: -16px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .cards-grid::-webkit-scrollbar {
+    display: none !important; /* Hide scrollbars for a clean app feel */
   }
 
   .card-showcase-box {
-    padding: 16px;
-    margin: 0 auto;
-    width: 100%;
-    max-width: 380px;
+    flex: 0 0 260px !important; /* Shrunk width for a compact app-like feel */
+    scroll-snap-align: center !important;
+    padding: 12px !important;
+    margin: 0 !important;
+    box-shadow: var(--shadow-md) !important;
+    gap: 14px !important;
+    overflow: visible !important; /* Prevent clipping of scaled card graphics */
   }
   
   .card-visual-wrapper {
-    transform: scale(0.9);
-    margin-bottom: -10px;
+    width: 231px !important; /* Exact scaled width: 340 * 0.68 */
+    height: 146px !important; /* Exact scaled height: 215 * 0.68 */
+    margin: 10px auto !important; /* Center the wrapper with small margin */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    position: relative !important;
+  }
+
+  .card-visual-wrapper .virtual-card {
+    width: 340px !important;
+    height: 215px !important;
+    transform: scale(0.68) !important; /* Scale child card graphic directly */
+    transform-origin: center center !important;
+    position: absolute !important; /* Take out of flow to prevent layout stretching */
+    flex-shrink: 0 !important;
   }
 
   .card-specs {
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    padding: 12px 0;
-    margin-bottom: 12px;
+    gap: 8px 10px;
+    padding: 8px 0;
+    margin-bottom: 4px;
   }
   
   .spec-info {
     flex-direction: column;
     align-items: flex-start;
+    gap: 2px;
   }
   
   .spec-name {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
   
   .spec-value {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
   }
 
   .card-buy-action {
-    padding-top: 12px;
+    padding-top: 8px;
+    margin-top: 0;
   }
   
   .price-val {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
+  }
+  
+  .price-label {
+    font-size: 0.65rem;
   }
   
   .btn-buy {
-    padding: 10px 18px;
-    font-size: 0.82rem;
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    border-radius: var(--radius-full);
   }
 
   /* Verify Payment Section */

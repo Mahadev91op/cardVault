@@ -316,9 +316,22 @@
   }
 
   .order-visual-container {
-    width: 100%;
-    max-width: 290px;
-    margin: 0 auto;
+    width: 231px !important; /* Exact scaled width: 340 * 0.68 */
+    height: 146px !important; /* Exact scaled height: 215 * 0.68 */
+    margin: 10px auto !important;
+    position: relative !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .order-visual-container .virtual-card {
+    width: 340px !important;
+    height: 215px !important;
+    transform: scale(0.68) !important;
+    transform-origin: center center !important;
+    position: absolute !important;
+    flex-shrink: 0 !important;
   }
 
   .order-details-container {
