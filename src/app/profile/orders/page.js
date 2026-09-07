@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import AuthModals from '@/components/AuthModals';
@@ -31,18 +31,10 @@ export default function ProfileOrders() {
   
   // Orders states
   const [orders, setOrders] = useState([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const [copySuccess, setCopySuccess] = useState(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchOrders();
-    } else {
-      setLoadingOrders(false);
-    }
-  }, [user]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoadingOrders(true);
       const res = await fetch('/api/orders');
@@ -57,7 +49,13 @@ export default function ProfileOrders() {
     } finally {
       setLoadingOrders(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchOrders();
+    }
+  }, [user, fetchOrders]);
 
   const handleOpenAuth = (type) => {
     setAuthType(type);
@@ -160,7 +158,7 @@ export default function ProfileOrders() {
                 </div>
                 <h2 className="empty-title">No Cards Found</h2>
                 <p className="empty-desc">
-                  You haven't purchased any virtual credit cards yet. Once you order a card from the marketplace, it will appear here.
+                  You haven&apos;t purchased any virtual credit cards yet. Once you order a card from the marketplace, it will appear here.
                 </p>
                 <Link href="/#marketplace" className="btn-primary">
                   Go to Marketplace

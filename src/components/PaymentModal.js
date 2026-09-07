@@ -26,8 +26,10 @@ export default function PaymentModal({
     return () => clearInterval(interval);
   }, [isOpen, timeLeft]);
 
-  // Reset state on modal open
-  useEffect(() => {
+  // Reset state on modal open without effect
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setTimeLeft(900);
       setUtrNumber('');
@@ -35,7 +37,7 @@ export default function PaymentModal({
       setSubmitting(false);
       setActiveTab('qr');
     }
-  }, [isOpen]);
+  }
 
   if (!isOpen || !card) return null;
 
@@ -158,6 +160,7 @@ export default function PaymentModal({
             {activeTab === 'qr' && (
               <div className="tab-pane-content qr-pane">
                 <div className="qr-container-box">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={qrCodeUrl} alt="UPI Payment QR Code" className="payment-qr-img" />
                   <div className="qr-overlay-text">₹{inrAmount}</div>
                 </div>

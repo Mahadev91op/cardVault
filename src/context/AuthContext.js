@@ -9,7 +9,8 @@ const AuthContext = createContext({
   login: async () => {},
   register: async () => {},
   logout: async () => {},
-  checkSession: async () => {}
+  checkSession: async () => {},
+  resetPassword: async () => {}
 });
 
 export function AuthProvider({ children }) {
@@ -17,9 +18,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const checkSession = async () => {
+  const checkSession = React.useCallback(async () => {
     try {
-      setLoading(true);
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
@@ -37,11 +37,11 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkSession();
-  }, []);
+  }, [checkSession]);
 
   const login = async (loginIdentifier, password) => {
     try {
@@ -94,8 +94,27 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const resetPassword = async (username, email, newPassword) => {
+    try {
+      setError(null);
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Password reset failed');
+      }
+      return { success: true, message: data.message };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout, checkSession }}>
+    <AuthContext.Provider value={{ user, loading, error, login, register, logout, checkSession, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

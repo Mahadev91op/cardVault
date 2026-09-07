@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import CreditCard from '@/components/CreditCard';
 import {
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
     usdToInrRate: 83
   });
 
-  const [loadingData, setLoadingData] = useState(true);
+  const [loadingData, setLoadingData] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -108,23 +108,20 @@ export default function AdminDashboard() {
     cvv: ''
   });
 
-  useEffect(() => {
-    if (user && user.isAdmin) {
-      loadDashboardData();
-    } else {
-      setLoadingData(false);
-    }
-  }, [user]);
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoadingData(true);
       
       const [ordersRes, cardsRes, usersRes, settingsRes] = await Promise.all([
-        fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' }),
-        fetch(`/api/cards?t=${Date.now()}`, { cache: 'no-store' }), 
-        fetch(`/api/admin/users?t=${Date.now()}`, { cache: 'no-store' }),
-        fetch(`/api/settings?t=${Date.now()}`, { cache: 'no-store' })
+        fetch('/api/admin/orders', { cache: 'no-store' }),
+        fetch('/api/cards', { cache: 'no-store' }), 
+        fetch('/api/admin/users', { cache: 'no-store' }),
+        fetch('/api/settings', { cache: 'no-store' })
       ]);
 
       if (ordersRes.ok && cardsRes.ok && usersRes.ok && settingsRes.ok) {
@@ -160,12 +157,13 @@ export default function AdminDashboard() {
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [showToast]);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
+  useEffect(() => {
+    if (user && user.isAdmin) {
+      loadDashboardData();
+    }
+  }, [user, loadDashboardData]);
 
   // --- Settings Handlers ---
   const handleSettingsChange = (field, value) => {

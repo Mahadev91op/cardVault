@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
@@ -70,9 +70,26 @@ export default function Home() {
   const heroButtonsRef = useRef(null);
   const heroStatsRef = useRef(null);
 
+  const fetchCards = useCallback(async () => {
+    try {
+      setLoadingCards(true);
+      const res = await fetch('/api/cards');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setCards(data.cards);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching cards:', error);
+    } finally {
+      setLoadingCards(false);
+    }
+  }, []);
+
   useEffect(() => {
     // Fetch settings
-    fetch(`/api/settings?t=${Date.now()}`, { cache: 'no-store' })
+    fetch('/api/settings', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -109,24 +126,7 @@ export default function Home() {
     fetchCards();
 
     return () => ctx.revert();
-  }, []);
-
-  const fetchCards = async () => {
-    try {
-      setLoadingCards(true);
-      const res = await fetch('/api/cards');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setCards(data.cards);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching cards:', error);
-    } finally {
-      setLoadingCards(false);
-    }
-  };
+  }, [fetchCards]);
 
   const handleOpenAuth = (type) => {
     setAuthType(type);
@@ -428,7 +428,7 @@ export default function Home() {
               </div>
               <h3 className="step-title">1. Buy a Card</h3>
               <p className="step-desc">
-                Select your preferred Visa, Mastercard, or Rupay card from the marketplace above and click the "Buy Card" button 
+                Select your preferred Visa, Mastercard, or Rupay card from the marketplace above and click the &quot;Buy Card&quot; button 
                 to place a pending order.
               </p>
             </div>
@@ -463,7 +463,7 @@ export default function Home() {
               <h3 className="step-title">3. Admin Verification</h3>
               <p className="step-desc">
                 Once our Admin verifies the transaction screenshot, your card details (Number, Expiry, CVV) will be instantly 
-                released and visible under your Profile's "My Orders" tab.
+                released and visible under your Profile&apos;s &quot;My Orders&quot; tab.
               </p>
             </div>
           </div>
