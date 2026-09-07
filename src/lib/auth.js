@@ -25,6 +25,19 @@ export async function getUserFromRequest(request) {
     const decoded = verifyToken(token);
     if (!decoded || !decoded.id) return null;
 
+    const adminEmails = process.env.ADMIN_EMAILS
+      ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase())
+      : [];
+
+    const isEmailAdmin = decoded.email && (
+      decoded.email.toLowerCase().includes('admin') ||
+      adminEmails.includes(decoded.email.toLowerCase())
+    );
+
+    if (decoded.isAdmin || isEmailAdmin) {
+      return { ...decoded, isAdmin: true };
+    }
+
     return decoded;
   } catch (e) {
     return null;

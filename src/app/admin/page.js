@@ -124,33 +124,54 @@ export default function AdminDashboard() {
         fetch('/api/settings', { cache: 'no-store' })
       ]);
 
-      if (ordersRes.ok && cardsRes.ok && usersRes.ok && settingsRes.ok) {
+      let fetchedOrders = [];
+      let fetchedCards = [];
+      let fetchedUsers = [];
+
+      if (ordersRes.ok) {
         const ordersData = await ordersRes.json();
-        const cardsData = await cardsRes.json();
-        const usersData = await usersRes.json();
-        const settingsData = await settingsRes.json();
-
-        if (ordersData.success && cardsData.success && usersData.success && settingsData.success) {
-          setOrders(ordersData.orders);
-          setCards(cardsData.cards);
-          setUsers(usersData.users);
-          setSettings(settingsData.settings);
-
-          // Calculate overview stats
-          const totalSales = ordersData.orders
-            .filter(o => o.status === 'completed')
-            .reduce((acc, curr) => acc + curr.pricePaid, 0);
-
-          const pendingOrders = ordersData.orders.filter(o => o.status === 'pending').length;
-
-          setStats({
-            totalSales,
-            totalUsers: usersData.users.length,
-            totalCards: cardsData.cards.length,
-            pendingOrders
-          });
+        if (ordersData.success && Array.isArray(ordersData.orders)) {
+          fetchedOrders = ordersData.orders;
+          setOrders(fetchedOrders);
         }
       }
+
+      if (cardsRes.ok) {
+        const cardsData = await cardsRes.json();
+        if (cardsData.success && Array.isArray(cardsData.cards)) {
+          fetchedCards = cardsData.cards;
+          setCards(fetchedCards);
+        }
+      }
+
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        if (usersData.success && Array.isArray(usersData.users)) {
+          fetchedUsers = usersData.users;
+          setUsers(fetchedUsers);
+        }
+      }
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        if (settingsData.success && settingsData.settings) {
+          setSettings(settingsData.settings);
+        }
+      }
+
+      // Calculate overview stats
+      const totalSales = fetchedOrders
+        .filter(o => o.status === 'completed')
+        .reduce((acc, curr) => acc + (curr.pricePaid || 0), 0);
+
+      const pendingOrders = fetchedOrders.filter(o => o.status === 'pending').length;
+
+      setStats({
+        totalSales,
+        totalUsers: fetchedUsers.length,
+        totalCards: fetchedCards.length,
+        pendingOrders
+      });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       showToast('Failed to load dashboard metrics', 'error');
