@@ -3,6 +3,8 @@ import dbConnect from '@/lib/db';
 import Card from '@/models/Card';
 import { getUserFromRequest } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // POST: Add new card to marketplace
 export async function POST(request) {
   try {

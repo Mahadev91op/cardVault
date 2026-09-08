@@ -7,6 +7,8 @@ import { getUserFromRequest } from '@/lib/auth';
 import { validateUtrNumber } from '@/lib/utrValidator';
 import { sendOrderNotificationEmail } from '@/lib/emailService';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Fetch user's orders
 export async function GET(request) {
   try {
@@ -137,15 +139,14 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: errorMsg }, { status: 400 });
     }
 
-    // Decrement card quantity
-    card.qty -= 1;
-    await card.save();
+    // Decrement card quantity atomically
+    await Card.findByIdAndUpdate(card._id, { $inc: { qty: -1 } });
 
     // Create a random mock real card details to be released after admin verification
-    // This is useful so the system has the actual virtual card number, CVV, expiry ready for completed status
-    const randomCardNum = card.cardNumber.split(' ').map((part, index) => {
+    const rawCardNum = card.cardNumber || '4532 8921 4432 9901';
+    const randomCardNum = rawCardNum.split(' ').map((part, index) => {
       if (index === 1 || index === 2) {
-        return Math.floor(1000 + Math.random() * 9000).toString(); // replace asterisks/placeholders with real numbers
+        return Math.floor(1000 + Math.random() * 9000).toString();
       }
       return part;
     }).join(' ');
@@ -198,6 +199,9 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Create order error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to create order' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || 'Failed to create order' 
+    }, { status: 500 });
   }
 }

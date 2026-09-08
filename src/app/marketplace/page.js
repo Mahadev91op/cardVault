@@ -45,23 +45,45 @@ export default function MarketplacePage() {
   const [selectedPaymentCard, setSelectedPaymentCard] = useState(null);
 
   const fetchCards = useCallback(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
+
     try {
-      setLoadingCards(true);
-      const res = await fetch('/api/cards', { cache: 'no-store' });
+      const res = await fetch('/api/cards', { 
+        cache: 'no-store',
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
-        if (data.success) {
+        if (data.success && Array.isArray(data.cards)) {
           setCards(data.cards);
+          try {
+            sessionStorage.setItem('cv_cards_cache', JSON.stringify(data.cards));
+          } catch (e) {}
         }
       }
     } catch (error) {
       console.error('Error fetching cards:', error);
     } finally {
+      clearTimeout(timeoutId);
       setLoadingCards(false);
     }
   }, []);
 
   useEffect(() => {
+    // Instant cache hydration
+    try {
+      const saved = sessionStorage.getItem('cv_cards_cache');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCards(parsed);
+          setLoadingCards(false);
+        }
+      }
+    } catch (e) {}
+
     fetch('/api/settings', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
@@ -388,20 +410,26 @@ export default function MarketplacePage() {
                 ) : (
                   <div className="market-empty-search">
                     <ShoppingBag size={40} />
-                    <h3>No Virtual Cards Found</h3>
+                    <h3>{cards.length === 0 ? 'Cards Loading Notice' : 'No Virtual Cards Found'}</h3>
                     <p>
-                      No cards matched your query &quot;{marketSearch}&quot;. Try adjusting your search or switching brands.
+                      {cards.length === 0
+                        ? 'Could not load cards or network is slow. Tap Retry to reload the cards.'
+                        : `No cards matched your query "${marketSearch}". Try adjusting your search or switching brands.`}
                     </p>
                     <button
                       type="button"
                       className="btn-secondary"
                       onClick={() => {
-                        setMarketSearch('');
-                        setSelectedType('all');
+                        if (cards.length === 0) {
+                          fetchCards();
+                        } else {
+                          setMarketSearch('');
+                          setSelectedType('all');
+                        }
                       }}
                       style={{ marginTop: '12px' }}
                     >
-                      Reset Filters
+                      {cards.length === 0 ? 'Retry Loading Cards' : 'Reset Filters'}
                     </button>
                   </div>
                 )}

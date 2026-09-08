@@ -6,6 +6,8 @@ import User from '@/models/User';
 import { getUserFromRequest } from '@/lib/auth';
 import { sendOrderApprovedEmail, sendOrderRejectedEmail } from '@/lib/emailService';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Fetch all orders for administration
 export async function GET(request) {
   try {

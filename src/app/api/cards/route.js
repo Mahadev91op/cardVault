@@ -146,26 +146,33 @@ const defaultCards = [
   }
 ];
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
-    // Upgrade check: If cards has old expiry format (like '3 Years Expiry'), reseed database
-    const cardCount = await Card.countDocuments();
-    const hasOldExpiry = await Card.findOne({ expiry: /Expiry/i });
-    
-    if (cardCount === 0 || hasOldExpiry) {
-      console.log('Upgrading default cards database with formatted exspiries (MM/YY)...');
-      await Card.deleteMany({});
+    // Only seed default cards if collection is completely empty
+    const cardCount = await Card.estimatedDocumentCount();
+    if (cardCount === 0) {
+      console.log('Seeding initial cards...');
       await Card.insertMany(defaultCards);
     }
 
-    const query = type ? { type } : {};
-    const cards = await Card.find(query);
+    const query = type && type !== 'all' ? { type } : {};
+    const cards = await Card.find(query).lean();
 
-    return NextResponse.json({ success: true, cards }, { status: 200 });
+    return NextResponse.json(
+      { success: true, cards },
+      { 
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      }
+    );
   } catch (error) {
     console.error('Cards fetch error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch cards' }, { status: 500 });

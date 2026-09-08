@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
 export function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
 }
 
 export function verifyToken(token) {
@@ -17,8 +17,26 @@ export function verifyToken(token) {
 
 export async function getUserFromRequest(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+    let token = null;
+
+    // 1. Check Authorization Bearer header (supports localStorage auth across all devices/LAN)
+    if (request && request.headers) {
+      const authHeader =
+        (typeof request.headers.get === 'function' && (request.headers.get('authorization') || request.headers.get('Authorization'))) ||
+        request.headers['authorization'] ||
+        request.headers['Authorization'];
+      if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
+      }
+    }
+
+    // 2. Fallback to HttpOnly cookie
+    if (!token) {
+      try {
+        const cookieStore = await cookies();
+        token = cookieStore.get('token')?.value;
+      } catch (e) {}
+    }
 
     if (!token) return null;
 

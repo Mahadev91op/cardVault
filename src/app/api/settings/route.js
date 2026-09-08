@@ -7,23 +7,24 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     await dbConnect();
-    let settings = await Settings.findOne();
+    let settings = await Settings.findOne().lean();
     
     // Seed default settings if none exist
     if (!settings) {
-      settings = await Settings.create({
+      const created = await Settings.create({
         upiId: 'mahadevtanti191@okaxis'
       });
-    } else {
-      // Guarantee exactly one configuration document in the collection
-      await Settings.deleteMany({ _id: { $ne: settings._id } });
-      if (!settings.upiId) {
-        settings.upiId = 'mahadevtanti191@okaxis';
-        await settings.save();
-      }
+      settings = created.toObject();
+    } else if (!settings.upiId) {
+      settings.upiId = 'mahadevtanti191@okaxis';
     }
 
-    return NextResponse.json({ success: true, settings }, { status: 200 });
+    return NextResponse.json({ success: true, settings }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0'
+      }
+    });
   } catch (error) {
     console.error('Fetch global settings error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch settings' }, { status: 500 });

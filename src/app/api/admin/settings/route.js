@@ -3,6 +3,8 @@ import dbConnect from '@/lib/db';
 import Settings from '@/models/Settings';
 import { getUserFromRequest } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // PUT: Update site global settings (Admin only)
 export async function PUT(request) {
   try {

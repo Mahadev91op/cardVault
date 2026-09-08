@@ -66,7 +66,7 @@ export async function POST(request) {
       isAdmin: !!isAdminEmail,
     });
 
-    // Generate JWT token
+    // Generate JWT token (30 days persistence)
     const token = signToken({ 
       id: newUser._id, 
       username: newUser.username, 
@@ -74,19 +74,21 @@ export async function POST(request) {
       isAdmin: newUser.isAdmin
     });
 
-    // Set cookie
+    // Set cookie (30 days validity, compatible with local LAN phone IP access)
+    const isHttps = request.headers.get('x-forwarded-proto') === 'https' || request.url.startsWith('https://');
     const cookieStore = await cookies();
     cookieStore.set('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
     });
 
     return NextResponse.json(
       {
         message: 'Registration successful',
+        token,
         user: {
           id: newUser._id,
           username: newUser.username,

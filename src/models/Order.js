@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
 
+// Clear cached Order model so hot-reloads always use updated schema
+if (mongoose.models && mongoose.models.Order) {
+  delete mongoose.models.Order;
+}
+
 const OrderSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -45,26 +50,12 @@ const OrderSchema = new mongoose.Schema({
     trim: true,
   },
   releasedCardDetails: {
-    number: String,
-    expiry: String,
-    cvv: String,
-    cardHolder: String,
-    dob: String,
-    atmPin: String,
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   cardSnapshot: {
-    name: String,
-    type: String,
-    limit: String,
-    cardNumber: String,
-    expiry: String,
-    cvv: String,
-    cardHolder: String,
-    dob: String,
-    atmPin: String,
-    entryFee: Number,
-    gradientStart: String,
-    gradientEnd: String,
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   createdAt: {
     type: Date,

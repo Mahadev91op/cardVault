@@ -157,23 +157,42 @@ export default function Home() {
   const heroStatsRef = useRef(null);
 
   const fetchCards = useCallback(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
+
     try {
-      setLoadingCards(true);
-      const res = await fetch('/api/cards');
+      const res = await fetch('/api/cards', { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
-        if (data.success) {
+        if (data.success && Array.isArray(data.cards)) {
           setCards(data.cards);
+          try {
+            sessionStorage.setItem('cv_cards_cache', JSON.stringify(data.cards));
+          } catch (e) {}
         }
       }
     } catch (error) {
       console.error('Error fetching cards:', error);
     } finally {
+      clearTimeout(timeoutId);
       setLoadingCards(false);
     }
   }, []);
 
   useEffect(() => {
+    // Instant cache hydration on client
+    try {
+      const saved = sessionStorage.getItem('cv_cards_cache');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCards(parsed);
+          setLoadingCards(false);
+        }
+      }
+    } catch (e) {}
+
     // Fetch settings
     fetch('/api/settings', { cache: 'no-store' })
       .then(res => res.json())
@@ -183,6 +202,8 @@ export default function Home() {
         }
       })
       .catch(err => console.error('Error fetching settings:', err));
+
+    fetchCards();
 
     // GSAP Entrance Animations
     const ctx = gsap.context(() => {
@@ -207,9 +228,6 @@ export default function Home() {
         { opacity: 1, duration: 1, delay: 0.8, ease: 'power2.out' }
       );
     });
-
-    // Fetch Cards from MongoDB
-    fetchCards();
 
     return () => ctx.revert();
   }, [fetchCards]);

@@ -11,6 +11,12 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Dynamic Base URL for production email action links
+const getAppBaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
+  return url.replace(/\/+$/, '');
+};
+
 /**
  * Send detailed email notification to Admin when a new order is placed with payment proof.
  * @param {Object} params
@@ -131,7 +137,7 @@ export async function sendOrderNotificationEmail({ order, buyer, card }) {
         <div style="font-size: 13px; color: #64748b; font-style: italic;">No screenshot file attached.</div>
       `}
 
-      <a href="http://localhost:3000/admin" class="btn-action">
+      <a href="${getAppBaseUrl()}/admin" class="btn-action">
         Open Admin Dashboard to Verify & Release
       </a>
     </div>
@@ -312,7 +318,7 @@ export async function sendOrderApprovedEmail({ order, buyer, card, releasedCardD
         <strong>🔒 Security Reminder:</strong> Keep your card number and CVV safe. You can access and copy your card details anytime from your CardVault dashboard.
       </div>
 
-      <a href="http://localhost:3000/profile/orders" class="btn-action">
+      <a href="${getAppBaseUrl()}/profile/orders" class="btn-action">
         Open My Card Vault
       </a>
     </div>
@@ -434,7 +440,7 @@ export async function sendOrderRejectedEmail({ order, buyer, card, rejectionReas
         </ol>
       </div>
 
-      <a href="http://localhost:3000/#marketplace" class="btn-retry">
+      <a href="${getAppBaseUrl()}/#marketplace" class="btn-retry">
         Return to Marketplace &amp; Retry Checkout
       </a>
     </div>
