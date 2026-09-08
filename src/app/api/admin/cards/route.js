@@ -14,7 +14,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { type, name, cardNumber, cvv, cardHolder, limit, expiry, refund, delivery, entryFee, qty, gradientStart, gradientEnd } = body;
+    const { type, name, cardNumber, cvv, cardHolder, dob, atmPin, limit, expiry, refund, delivery, entryFee, qty, gradientStart, gradientEnd } = body;
 
     if (!type || !name || !cardNumber || !limit || !expiry || !entryFee) {
       return NextResponse.json({ success: false, error: 'Missing required card fields' }, { status: 400 });
@@ -26,6 +26,8 @@ export async function POST(request) {
       cardNumber,
       cvv: cvv || '***',
       cardHolder: cardHolder || 'CARDHOLDER',
+      dob: dob || '15/07/1994',
+      atmPin: atmPin || '1234',
       limit,
       expiry,
       refund: refund || '100% Refundable',
@@ -67,7 +69,7 @@ export async function PUT(request) {
 
     // Update fields
     const allowedUpdates = [
-      'type', 'name', 'cardNumber', 'cvv', 'cardHolder', 
+      'type', 'name', 'cardNumber', 'cvv', 'cardHolder', 'dob', 'atmPin',
       'limit', 'expiry', 'refund', 'delivery', 'entryFee', 
       'qty', 'gradientStart', 'gradientEnd'
     ];

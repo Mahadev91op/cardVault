@@ -87,13 +87,9 @@ export default function Navbar({ onOpenAuth }) {
             <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>
               Home
             </Link>
-            <a
-              href="#marketplace"
-              onClick={(e) => handleNavClick(e, 'marketplace')}
-              className="nav-link"
-            >
+            <Link href="/marketplace" className={`nav-link ${pathname === '/marketplace' ? 'active' : ''}`}>
               Marketplace
-            </a>
+            </Link>
             <a
               href="#verify-payment"
               onClick={(e) => handleNavClick(e, 'verify-payment')}
@@ -152,14 +148,13 @@ export default function Navbar({ onOpenAuth }) {
           <Home size={20} />
           <span>Home</span>
         </Link>
-        <a 
-          href="#marketplace" 
-          onClick={(e) => handleNavClick(e, 'marketplace')} 
-          className="bottom-tab-item"
+        <Link 
+          href="/marketplace" 
+          className={`bottom-tab-item ${pathname === '/marketplace' ? 'active' : ''}`}
         >
           <CardIcon size={20} />
-          <span>Browse</span>
-        </a>
+          <span>Cards</span>
+        </Link>
         <a 
           href="#verify-payment" 
           onClick={(e) => handleNavClick(e, 'verify-payment')} 
@@ -185,10 +180,6 @@ export default function Navbar({ onOpenAuth }) {
             <span>Admin</span>
           </Link>
         )}
-        <a href="#verify-payment" onClick={(e) => handleNavClick(e, 'verify-payment')} className="bottom-tab-item">
-          <CheckCircle2 size={20} />
-          <span>Verify</span>
-        </a>
       </div>
     </>
   );

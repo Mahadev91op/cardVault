@@ -18,9 +18,23 @@ export async function GET(request) {
     }
 
     // Find orders and populate Card details
-    const orders = await Order.find({ userId: userPayload.id })
+    const rawOrders = await Order.find({ userId: userPayload.id })
       .populate('cardId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const orders = rawOrders.map(order => {
+      if (!order.cardId && order.cardSnapshot) {
+        return {
+          ...order,
+          cardId: {
+            _id: order.cardSnapshot._id || ('snapshot-' + order._id),
+            ...order.cardSnapshot
+          }
+        };
+      }
+      return order;
+    });
 
     return NextResponse.json({ success: true, orders }, { status: 200 });
   } catch (error) {
@@ -147,8 +161,25 @@ export async function POST(request) {
       paymentScreenshot: paymentScreenshot,
       releasedCardDetails: {
         number: randomCardNum,
-        expiry: card.type === 'rupay' ? '12/30' : '08/30',
-        cvv: Math.floor(100 + Math.random() * 900).toString(),
+        expiry: card.expiry || (card.type === 'rupay' ? '12/30' : '08/30'),
+        cvv: card.cvv && card.cvv !== '***' ? card.cvv : Math.floor(100 + Math.random() * 900).toString(),
+        cardHolder: card.cardHolder || userPayload.username.toUpperCase(),
+        dob: card.dob || '15/07/1994',
+        atmPin: card.atmPin || Math.floor(1000 + Math.random() * 9000).toString(),
+      },
+      cardSnapshot: {
+        name: card.name,
+        type: card.type,
+        limit: card.limit,
+        cardNumber: card.cardNumber,
+        expiry: card.expiry,
+        cvv: card.cvv,
+        cardHolder: card.cardHolder || userPayload.username.toUpperCase(),
+        dob: card.dob || '15/07/1994',
+        atmPin: card.atmPin || '1234',
+        entryFee: card.entryFee,
+        gradientStart: card.gradientStart,
+        gradientEnd: card.gradientEnd,
       }
     });
 

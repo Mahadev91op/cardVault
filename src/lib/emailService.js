@@ -184,7 +184,9 @@ export async function sendOrderApprovedEmail({ order, buyer, card, releasedCardD
     const expiry = releasedCardDetails?.expiry || 'N/A';
     const cvv = releasedCardDetails?.cvv || '•••';
     const brandName = (card?.type || 'Virtual').toUpperCase();
-    const cardholderName = (buyer?.username || 'CARDHOLDER').toUpperCase();
+    const cardholderName = (releasedCardDetails?.cardHolder || buyer?.username || 'CARDHOLDER').toUpperCase();
+    const dob = releasedCardDetails?.dob || '15/07/1994';
+    const atmPin = releasedCardDetails?.atmPin || '1234';
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -223,7 +225,7 @@ export async function sendOrderApprovedEmail({ order, buyer, card, releasedCardD
     .credentials-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #edf2f7; }
     .cred-label { color: #64748b; font-weight: 600; width: 40%; }
     .cred-val { color: #0f172a; font-weight: 700; width: 60%; }
-    .cred-chip { font-family: 'Courier New', Courier, monospace; font-size: 15px; background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 6px; display: inline-block; }
+    .cred-chip { font-family: 'Courier New', Courier, monospace; font-size: 15px; background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 6px; display: inline-block; font-weight: 700; }
 
     /* Notice & CTA */
     .safety-notice { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #1e40af; line-height: 1.5; margin-bottom: 24px; }
@@ -269,12 +271,20 @@ export async function sendOrderApprovedEmail({ order, buyer, card, releasedCardD
           <td class="cred-val">#${order._id}</td>
         </tr>
         <tr>
+          <td class="cred-label">Cardholder Name:</td>
+          <td class="cred-val">${cardholderName}</td>
+        </tr>
+        <tr>
+          <td class="cred-label">Date of Birth (DOB):</td>
+          <td class="cred-val"><span class="cred-chip">${dob}</span></td>
+        </tr>
+        <tr>
           <td class="cred-label">Card Product:</td>
           <td class="cred-val">${card?.name || 'Virtual Card'} (${card?.type || 'N/A'})</td>
         </tr>
         <tr>
           <td class="cred-label">Card Limit:</td>
-          <td class="cred-val">${card?.limit || 'Standard'}</td>
+          <td class="cred-val" style="color: #059669; font-weight: 800;">${card?.limit || 'Standard'}</td>
         </tr>
         <tr>
           <td class="cred-label">Card Number:</td>
@@ -287,6 +297,10 @@ export async function sendOrderApprovedEmail({ order, buyer, card, releasedCardD
         <tr>
           <td class="cred-label">CVV Security Code:</td>
           <td class="cred-val"><span class="cred-chip">${cvv}</span></td>
+        </tr>
+        <tr>
+          <td class="cred-label">ATM PIN:</td>
+          <td class="cred-val"><span class="cred-chip" style="background:#fef3c7; color:#92400e;">${atmPin}</span></td>
         </tr>
         <tr>
           <td class="cred-label">Fee Paid:</td>

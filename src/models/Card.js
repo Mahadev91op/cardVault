@@ -22,6 +22,14 @@ const CardSchema = new mongoose.Schema({
     type: String,
     default: 'CARDHOLDER',
   },
+  dob: {
+    type: String,
+    default: '15/07/1994',
+  },
+  atmPin: {
+    type: String,
+    default: '1234',
+  },
   limit: {
     type: String,
     required: [true, 'Card spending limit is required'],

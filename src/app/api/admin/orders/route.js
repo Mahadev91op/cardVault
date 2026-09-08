@@ -16,10 +16,24 @@ export async function GET(request) {
       return NextResponse.json({ success: false, error: 'Forbidden. Admin access required.' }, { status: 403 });
     }
 
-    const orders = await Order.find({})
+    const rawOrders = await Order.find({})
       .populate('userId', 'username email')
       .populate('cardId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const orders = rawOrders.map(order => {
+      if (!order.cardId && order.cardSnapshot) {
+        return {
+          ...order,
+          cardId: {
+            _id: order.cardSnapshot._id || ('snapshot-' + order._id),
+            ...order.cardSnapshot
+          }
+        };
+      }
+      return order;
+    });
 
     return NextResponse.json({ success: true, orders }, { status: 200 });
   } catch (error) {
@@ -55,12 +69,15 @@ export async function PUT(request) {
 
     order.status = status;
     
-    // If completing the order, set the released card details
+    // If completing the order, set the released card details (all 7 factors)
     if (status === 'completed' && releasedCardDetails) {
       order.releasedCardDetails = {
         number: releasedCardDetails.number,
         expiry: releasedCardDetails.expiry,
         cvv: releasedCardDetails.cvv,
+        cardHolder: releasedCardDetails.cardHolder || order.releasedCardDetails?.cardHolder || 'CARDHOLDER',
+        dob: releasedCardDetails.dob || order.releasedCardDetails?.dob || '15/07/1994',
+        atmPin: releasedCardDetails.atmPin || order.releasedCardDetails?.atmPin || '1234',
       };
       order.rejectionReason = '';
     } else if (status === 'failed') {

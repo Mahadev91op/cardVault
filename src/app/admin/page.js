@@ -32,7 +32,11 @@ import {
   Check,
   Eye,
   FileImage,
-  AlertTriangle
+  AlertTriangle,
+  TrendingUp,
+  ArrowUpRight,
+  Layers,
+  Activity
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -62,7 +66,21 @@ export default function AdminDashboard() {
   const [hoveredBrand, setHoveredBrand] = useState(null);
 
   // Data states
-  const [stats, setStats] = useState({ totalSales: 0, totalUsers: 0, totalCards: 0, pendingOrders: 0 });
+  const [stats, setStats] = useState({
+    totalSales: 0,
+    totalUsers: 0,
+    customerUsers: 0,
+    adminUsers: 0,
+    totalCards: 0,
+    totalStockUnits: 0,
+    lowStockCount: 0,
+    totalOrders: 0,
+    completedOrders: 0,
+    pendingOrders: 0,
+    failedOrders: 0,
+    averageOrderValue: 0,
+    approvalRate: 100
+  });
   const [orders, setOrders] = useState([]);
   const [cards, setCards] = useState([]);
   const [users, setUsers] = useState([]);
@@ -108,6 +126,8 @@ export default function AdminDashboard() {
     cardNumber: '',
     cvv: '',
     cardHolder: 'CARDHOLDER',
+    dob: '15/07/1994',
+    atmPin: '1234',
     limit: '',
     expiry: '',
     refund: '100% Refundable',
@@ -122,7 +142,10 @@ export default function AdminDashboard() {
   const [verifyForm, setVerifyForm] = useState({
     number: '',
     expiry: '',
-    cvv: ''
+    cvv: '',
+    cardHolder: '',
+    dob: '',
+    atmPin: ''
   });
 
   const showToast = useCallback((message, type = 'success') => {
@@ -178,18 +201,34 @@ export default function AdminDashboard() {
         }
       }
 
-      // Calculate overview stats
-      const totalSales = fetchedOrders
-        .filter(o => o.status === 'completed')
-        .reduce((acc, curr) => acc + (curr.pricePaid || 0), 0);
+      // Calculate 100% real live operational and financial metrics
+      const completedOrdersList = fetchedOrders.filter(o => o.status === 'completed');
+      const pendingOrdersCount = fetchedOrders.filter(o => o.status === 'pending').length;
+      const failedOrdersCount = fetchedOrders.filter(o => o.status === 'failed').length;
+      const totalOrdersCount = fetchedOrders.length;
+      const totalSales = completedOrdersList.reduce((acc, curr) => acc + (curr.pricePaid || 0), 0);
+      const averageOrderValue = completedOrdersList.length > 0 ? Math.round(totalSales / completedOrdersList.length) : 0;
+      const approvalRate = totalOrdersCount > 0 ? Math.round((completedOrdersList.length / totalOrdersCount) * 100) : 100;
 
-      const pendingOrders = fetchedOrders.filter(o => o.status === 'pending').length;
+      const totalStockUnits = fetchedCards.reduce((acc, c) => acc + (Number(c.qty) || 0), 0);
+      const lowStockCount = fetchedCards.filter(c => Number(c.qty) < 10).length;
+      const adminUsersCount = fetchedUsers.filter(u => u.isAdmin).length;
+      const customerUsersCount = fetchedUsers.filter(u => !u.isAdmin).length;
 
       setStats({
         totalSales,
         totalUsers: fetchedUsers.length,
+        customerUsers: customerUsersCount,
+        adminUsers: adminUsersCount,
         totalCards: fetchedCards.length,
-        pendingOrders
+        totalStockUnits,
+        lowStockCount,
+        totalOrders: totalOrdersCount,
+        completedOrders: completedOrdersList.length,
+        pendingOrders: pendingOrdersCount,
+        failedOrders: failedOrdersCount,
+        averageOrderValue,
+        approvalRate
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -225,10 +264,21 @@ export default function AdminDashboard() {
               }
               prevAdminOrdersCountRef.current = pendingCount;
               setOrders(freshOrders);
+              
+              const freshCompleted = freshOrders.filter((o) => o.status === 'completed');
+              const freshTotalSales = freshCompleted.reduce((acc, curr) => acc + (curr.pricePaid || 0), 0);
+              const freshAov = freshCompleted.length > 0 ? Math.round(freshTotalSales / freshCompleted.length) : 0;
+              const freshApprovalRate = freshOrders.length > 0 ? Math.round((freshCompleted.length / freshOrders.length) * 100) : 100;
+
               setStats((prev) => ({
                 ...prev,
                 pendingOrders: pendingCount,
-                totalSales: freshOrders.filter((o) => o.status === 'completed').reduce((acc, curr) => acc + (curr.pricePaid || 0), 0)
+                completedOrders: freshCompleted.length,
+                failedOrders: freshOrders.filter((o) => o.status === 'failed').length,
+                totalOrders: freshOrders.length,
+                totalSales: freshTotalSales,
+                averageOrderValue: freshAov,
+                approvalRate: freshApprovalRate
               }));
             }
           }
@@ -290,10 +340,14 @@ export default function AdminDashboard() {
   const handleOpenVerifyModal = (order) => {
     setSelectedOrder(order);
     setBankVerified(false);
+    const card = order.cardId || {};
     setVerifyForm({
-      number: order.releasedCardDetails?.number || '',
-      expiry: order.releasedCardDetails?.expiry || '',
-      cvv: order.releasedCardDetails?.cvv || ''
+      number: order.releasedCardDetails?.number || card.cardNumber || '',
+      expiry: order.releasedCardDetails?.expiry || card.expiry || '',
+      cvv: order.releasedCardDetails?.cvv || card.cvv || '',
+      cardHolder: order.releasedCardDetails?.cardHolder || card.cardHolder || order.userId?.username?.toUpperCase() || 'CARDHOLDER',
+      dob: order.releasedCardDetails?.dob || card.dob || '15/07/1994',
+      atmPin: order.releasedCardDetails?.atmPin || card.atmPin || '1234'
     });
     setVerifyModalOpen(true);
   };
@@ -391,7 +445,9 @@ export default function AdminDashboard() {
         name: card.name,
         cardNumber: card.cardNumber,
         cvv: card.cvv,
-        cardHolder: card.cardHolder,
+        cardHolder: card.cardHolder || 'CARDHOLDER',
+        dob: card.dob || '15/07/1994',
+        atmPin: card.atmPin || '1234',
         limit: card.limit,
         expiry: card.expiry,
         refund: card.refund,
@@ -408,6 +464,8 @@ export default function AdminDashboard() {
         cardNumber: '',
         cvv: '***',
         cardHolder: 'CARDHOLDER',
+        dob: '15/07/1994',
+        atmPin: '1234',
         limit: '',
         expiry: '',
         refund: '100% Refundable',
@@ -473,6 +531,29 @@ export default function AdminDashboard() {
       showToast('Network error occurred', 'error');
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const handleQuickStock = async (card, delta) => {
+    const newQty = Math.max(0, (Number(card.qty) || 0) + delta);
+    try {
+      const res = await fetch('/api/admin/cards', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId: card._id,
+          qty: newQty
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`Stock updated for ${card.name}: ${newQty} units`);
+        loadDashboardData(true);
+      } else {
+        showToast(data.error || 'Failed to update stock', 'error');
+      }
+    } catch (err) {
+      showToast('Network error updating stock', 'error');
     }
   };
 
@@ -695,45 +776,126 @@ export default function AdminDashboard() {
             {/* TAB CONTENT: 1. DASHBOARD */}
             {activeTab === 'dashboard' && (
               <>
-                {/* Metrics Overview Cards */}
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <div className="stat-info">
-                      <span className="stat-card-label">Total Revenue</span>
-                      <span className="stat-card-value">₹{stats.totalSales}</span>
+                {/* Executive KPIs & Real-Time Operational Health */}
+                <div className="stats-grid executive-stats-grid">
+                  {/* KPI 1: Real GMV Revenue */}
+                  <div className="stat-card kpi-card">
+                    <div className="stat-card-top">
+                      <div className="stat-info">
+                        <span className="stat-card-label">Total Live Revenue</span>
+                        <span className="stat-card-value">₹{(stats.totalSales || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="stat-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+                        <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>₹</span>
+                      </div>
                     </div>
-                    <div className="stat-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.08)', color: 'var(--success)' }}>
-                      <DollarSign size={24} />
-                    </div>
-                  </div>
-
-                  <div className="stat-card">
-                    <div className="stat-info">
-                      <span className="stat-card-label">Pending Requests</span>
-                      <span className="stat-card-value">{stats.pendingOrders}</span>
-                    </div>
-                    <div className="stat-icon-wrapper" style={{ background: 'rgba(245, 158, 11, 0.08)', color: 'var(--warning)' }}>
-                      <AlertCircle size={24} />
+                    <div className="kpi-card-footer">
+                      <span className="kpi-tag success">Settled GMV</span>
+                      <span className="kpi-meta">{stats.completedOrders || 0} orders approved & fulfilled</span>
                     </div>
                   </div>
 
-                  <div className="stat-card">
-                    <div className="stat-info">
-                      <span className="stat-card-label">Issued Cards</span>
-                      <span className="stat-card-value">{orders.filter(o => o.status === 'completed').length}</span>
+                  {/* KPI 2: Pending Verifications */}
+                  <div className="stat-card kpi-card highlight-pending">
+                    <div className="stat-card-top">
+                      <div className="stat-info">
+                        <span className="stat-card-label">Pending Verifications</span>
+                        <span className="stat-card-value" style={{ color: (stats.pendingOrders || 0) > 0 ? '#f59e0b' : 'inherit' }}>
+                          {stats.pendingOrders || 0}
+                        </span>
+                      </div>
+                      <div className="stat-icon-wrapper" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
+                        <AlertCircle size={24} />
+                      </div>
                     </div>
-                    <div className="stat-icon-wrapper" style={{ background: 'rgba(79, 70, 229, 0.08)', color: 'var(--primary)' }}>
-                      <CardIcon size={24} />
+                    <div className="kpi-card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="kpi-meta">Awaiting payment verification</span>
+                      {(stats.pendingOrders || 0) > 0 && (
+                        <button 
+                          type="button"
+                          className="btn-kpi-action"
+                          onClick={() => {
+                            setActiveTab('orders');
+                            setOrderFilter('pending');
+                          }}
+                        >
+                          Review <ArrowUpRight size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  <div className="stat-card">
-                    <div className="stat-info">
-                      <span className="stat-card-label">Active Users</span>
-                      <span className="stat-card-value">{stats.totalUsers}</span>
+                  {/* KPI 3: Average Order Value (AOV) */}
+                  <div className="stat-card kpi-card">
+                    <div className="stat-card-top">
+                      <div className="stat-info">
+                        <span className="stat-card-label">Average Order Value</span>
+                        <span className="stat-card-value">₹{(stats.averageOrderValue || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="stat-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
+                        <TrendingUp size={24} />
+                      </div>
                     </div>
-                    <div className="stat-icon-wrapper" style={{ background: 'rgba(71, 85, 105, 0.08)', color: 'var(--text-secondary)' }}>
-                      <Users size={24} />
+                    <div className="kpi-card-footer">
+                      <span className="kpi-tag info">Ticket Size</span>
+                      <span className="kpi-meta">Based on {stats.completedOrders || 0} transactions</span>
+                    </div>
+                  </div>
+
+                  {/* KPI 4: Approval / Conversion Rate */}
+                  <div className="stat-card kpi-card">
+                    <div className="stat-card-top">
+                      <div className="stat-info">
+                        <span className="stat-card-label">Approval Success Rate</span>
+                        <span className="stat-card-value">{stats.approvalRate ?? 100}%</span>
+                      </div>
+                      <div className="stat-icon-wrapper" style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6' }}>
+                        <Activity size={24} />
+                      </div>
+                    </div>
+                    <div className="kpi-card-footer">
+                      <span className="kpi-meta">
+                        <strong style={{ color: '#10b981' }}>{stats.completedOrders || 0}</strong> approved • <strong style={{ color: '#ef4444' }}>{stats.failedOrders || 0}</strong> rejected
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* KPI 5: Catalog Stock Units */}
+                  <div className="stat-card kpi-card">
+                    <div className="stat-card-top">
+                      <div className="stat-info">
+                        <span className="stat-card-label">Live Inventory Units</span>
+                        <span className="stat-card-value">{(stats.totalStockUnits || 0).toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>units</span></span>
+                      </div>
+                      <div className="stat-icon-wrapper" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#6366f1' }}>
+                        <Layers size={24} />
+                      </div>
+                    </div>
+                    <div className="kpi-card-footer">
+                      <span className="kpi-tag primary">{stats.totalCards || 0} cards active</span>
+                      {(stats.lowStockCount || 0) > 0 && (
+                        <span className="kpi-meta" style={{ color: '#f59e0b', fontWeight: 600 }}>
+                          {stats.lowStockCount} low stock (&lt;10)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* KPI 6: User Accounts Directory */}
+                  <div className="stat-card kpi-card">
+                    <div className="stat-card-top">
+                      <div className="stat-info">
+                        <span className="stat-card-label">Registered Accounts</span>
+                        <span className="stat-card-value">{stats.totalUsers || 0}</span>
+                      </div>
+                      <div className="stat-icon-wrapper" style={{ background: 'rgba(100, 116, 139, 0.12)', color: 'var(--text-secondary)' }}>
+                        <Users size={24} />
+                      </div>
+                    </div>
+                    <div className="kpi-card-footer">
+                      <span className="kpi-meta">
+                        <strong>{stats.customerUsers || 0}</strong> customers • <strong>{stats.adminUsers || 0}</strong> admins
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -816,9 +978,9 @@ export default function AdminDashboard() {
                             <line x1={paddingX} y1={chartHeight - paddingY} x2={chartWidth - paddingX} y2={chartHeight - paddingY} stroke="var(--border-color)" strokeWidth="1" opacity="0.8" />
 
                             {/* Y-axis Labels */}
-                            <text x={paddingX - 10} y={paddingY + 4} textAnchor="end" fontSize="10" fill="var(--text-secondary)" fontWeight="bold">${Math.round(maxSales)}</text>
-                            <text x={paddingX - 10} y={(chartHeight) / 2 + 4} textAnchor="end" fontSize="10" fill="var(--text-secondary)" fontWeight="bold">${Math.round(maxSales / 2)}</text>
-                            <text x={paddingX - 10} y={chartHeight - paddingY + 4} textAnchor="end" fontSize="10" fill="var(--text-secondary)" fontWeight="bold">$0</text>
+                            <text x={paddingX - 10} y={paddingY + 4} textAnchor="end" fontSize="10" fill="var(--text-secondary)" fontWeight="bold">₹{Math.round(maxSales)}</text>
+                            <text x={paddingX - 10} y={(chartHeight) / 2 + 4} textAnchor="end" fontSize="10" fill="var(--text-secondary)" fontWeight="bold">₹{Math.round(maxSales / 2)}</text>
+                            <text x={paddingX - 10} y={chartHeight - paddingY + 4} textAnchor="end" fontSize="10" fill="var(--text-secondary)" fontWeight="bold">₹0</text>
 
                             {/* Chart Area Fill & Stroke */}
                             {points.length > 0 && (
@@ -876,7 +1038,7 @@ export default function AdminDashboard() {
                             }}>
                               <div>{hoveredSalesPoint.dateKey}</div>
                               <div style={{ color: '#38bdf8', fontSize: '0.9rem', marginTop: '2px' }}>
-                                Sales: ${hoveredSalesPoint.sales} | Orders: {hoveredSalesPoint.count}
+                                Sales: ₹{hoveredSalesPoint.sales.toLocaleString('en-IN')} | Orders: {hoveredSalesPoint.count}
                               </div>
                             </div>
                           )}
@@ -1283,10 +1445,33 @@ export default function AdminDashboard() {
                           />
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
                             <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{card.name}</div>
+                            <div>Holder: <strong>{card.cardHolder || 'CARDHOLDER'}</strong></div>
+                            <div>DOB: <strong>{card.dob || '15/07/1994'}</strong> | PIN: <strong style={{ color: 'var(--primary)' }}>{card.atmPin || '1234'}</strong></div>
                             <div>Type: <strong style={{ textTransform: 'capitalize' }}>{card.type}</strong></div>
                             <div>Limit: <strong>{card.limit}</strong></div>
                             <div>Fee: <strong>₹{card.entryFee} INR</strong></div>
-                            <div>Stock: <strong style={{ color: card.qty < 10 ? 'var(--accent)' : 'inherit' }}>{card.qty} units</strong></div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', background: 'rgba(255,255,255,0.03)', padding: '4px 8px', borderRadius: '6px' }}>
+                              <span>Stock: <strong style={{ color: (card.qty || 0) < 10 ? '#ef4444' : 'inherit' }}>{card.qty || 0} units</strong></span>
+                              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  title="Reduce inventory by 1"
+                                  onClick={() => handleQuickStock(card, -1)}
+                                  className="btn-stock-quick"
+                                  disabled={(card.qty || 0) <= 0}
+                                >
+                                  -1
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Restock inventory by +5"
+                                  onClick={() => handleQuickStock(card, 5)}
+                                  className="btn-stock-quick btn-stock-plus"
+                                >
+                                  +5
+                                </button>
+                              </div>
+                            </div>
                           </div>
                           <div className="admin-card-actions">
                             <button onClick={() => handleOpenCardModal('edit', card)} className="btn-admin-action" style={{ color: 'var(--primary)' }}>
@@ -1643,6 +1828,42 @@ export default function AdminDashboard() {
 
                 <div className="admin-form-row">
                   <div className="admin-form-group">
+                    <label className="admin-form-label">Cardholder Name</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="e.g. AARAV SHARMA"
+                      value={cardForm.cardHolder}
+                      onChange={(e) => setCardForm({ ...cardForm, cardHolder: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Date of Birth (DOB)</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="e.g. 15/07/1994"
+                      value={cardForm.dob}
+                      onChange={(e) => setCardForm({ ...cardForm, dob: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">ATM PIN</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="e.g. 1234"
+                      value={cardForm.atmPin}
+                      onChange={(e) => setCardForm({ ...cardForm, atmPin: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="admin-form-row">
+                  <div className="admin-form-group">
                     <label className="admin-form-label">Spending Limit</label>
                     <input
                       type="text"
@@ -1850,6 +2071,31 @@ export default function AdminDashboard() {
 
                 <div className="admin-form-row">
                   <div className="admin-form-group">
+                    <label className="admin-form-label">Cardholder Name</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="e.g. AARAV SHARMA"
+                      value={verifyForm.cardHolder}
+                      onChange={(e) => setVerifyForm({ ...verifyForm, cardHolder: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Date of Birth (DOB)</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="e.g. 15/07/1994"
+                      value={verifyForm.dob}
+                      onChange={(e) => setVerifyForm({ ...verifyForm, dob: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="admin-form-row">
+                  <div className="admin-form-group">
                     <label className="admin-form-label">Expiry (MM/YY)</label>
                     <input
                       type="text"
@@ -1868,6 +2114,17 @@ export default function AdminDashboard() {
                       placeholder="e.g. 981"
                       value={verifyForm.cvv}
                       onChange={(e) => setVerifyForm({ ...verifyForm, cvv: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">ATM PIN</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="e.g. 1234"
+                      value={verifyForm.atmPin}
+                      onChange={(e) => setVerifyForm({ ...verifyForm, atmPin: e.target.value })}
                       required
                     />
                   </div>

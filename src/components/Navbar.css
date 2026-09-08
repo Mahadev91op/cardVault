@@ -4,20 +4,23 @@
   left: 0;
   right: 0;
   height: 80px;
-  z-index: 100;
+  z-index: 1000;
   display: flex;
   align-items: center;
   transition: var(--transition-normal);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .navbar-scrolled {
   height: 70px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 4px 30px rgba(15, 23, 42, 0.02);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
 }
 
 .navbar-content {

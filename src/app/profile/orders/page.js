@@ -31,6 +31,7 @@ export default function ProfileOrders() {
   // Orders states
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [copySuccess, setCopySuccess] = useState(null);
   const [celebrationToast, setCelebrationToast] = useState(null);
   const [isLiveSyncing, setIsLiveSyncing] = useState(false);
@@ -248,16 +249,86 @@ export default function ProfileOrders() {
                 <p className="empty-desc">
                   You haven&apos;t purchased any virtual credit cards yet. Once you order a card from the marketplace, it will appear here.
                 </p>
-                <Link href="/#marketplace" className="btn-primary">
+                <Link href="/marketplace" className="btn-primary">
                   Go to Marketplace
                 </Link>
               </div>
-            ) : (
-              /* Orders List */
-              <div className="orders-list">
-                {orders.map((order) => {
-                  const card = order.cardId;
-                  if (!card) return null; // handle deleted card reference
+            ) : (() => {
+              const completedOrders = orders.filter((o) => o.status === 'completed');
+              const pendingOrders = orders.filter((o) => o.status === 'pending');
+              const failedOrders = orders.filter((o) => o.status === 'failed');
+
+              const visibleOrders = orders.filter((order) => {
+                if (statusFilter === 'completed') return order.status === 'completed';
+                if (statusFilter === 'pending') return order.status === 'pending';
+                if (statusFilter === 'failed') return order.status === 'failed';
+                return true;
+              });
+
+              return (
+                <div>
+                  {/* Status Filter Tabs */}
+                  <div className="orders-filter-bar">
+                    <button 
+                      type="button" 
+                      className={`order-filter-pill ${statusFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setStatusFilter('all')}
+                    >
+                      All Orders ({orders.length})
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`order-filter-pill ${statusFilter === 'completed' ? 'active' : ''}`}
+                      onClick={() => setStatusFilter('completed')}
+                    >
+                      <CheckCircle size={13} /> Active / Released ({completedOrders.length})
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`order-filter-pill ${statusFilter === 'pending' ? 'active' : ''}`}
+                      onClick={() => setStatusFilter('pending')}
+                    >
+                      <Clock size={13} /> Pending Verification ({pendingOrders.length})
+                    </button>
+                    {failedOrders.length > 0 && (
+                      <button 
+                        type="button" 
+                        className={`order-filter-pill ${statusFilter === 'failed' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('failed')}
+                      >
+                        <XCircle size={13} /> Rejected ({failedOrders.length})
+                      </button>
+                    )}
+                  </div>
+
+                  {visibleOrders.length === 0 ? (
+                    <div className="orders-empty-state" style={{ padding: '40px 20px' }}>
+                      <p className="empty-desc">No cards found under &quot;{statusFilter}&quot; filter.</p>
+                      <button type="button" className="btn-secondary" onClick={() => setStatusFilter('all')}>
+                        Show All Orders
+                      </button>
+                    </div>
+                  ) : (
+                    /* Orders List */
+                    <div className="orders-list">
+                      {visibleOrders.map((order) => {
+                        // Safe card resolution: order.cardId -> order.cardSnapshot -> fallback
+                        const card = order.cardId || order.cardSnapshot || {
+                          name: order.releasedCardDetails?.cardHolder ? `${order.releasedCardDetails.cardHolder}'s Virtual Card` : 'Virtual Credit Card',
+                          type: (order.releasedCardDetails?.number?.startsWith('4') ? 'visa' : order.releasedCardDetails?.number?.startsWith('5') ? 'mastercard' : 'rupay'),
+                          cardNumber: order.releasedCardDetails?.number || '•••• •••• •••• ••••',
+                          expiry: order.releasedCardDetails?.expiry || '12/29',
+                          cvv: order.releasedCardDetails?.cvv || '***',
+                          cardHolder: order.releasedCardDetails?.cardHolder || user?.username?.toUpperCase() || 'CARDHOLDER',
+                          dob: order.releasedCardDetails?.dob || '15/07/1994',
+                          atmPin: order.releasedCardDetails?.atmPin || '1234',
+                          limit: '₹5,00,000 INR / $6,000',
+                          refund: '100% Refundable',
+                          delivery: 'Instant Delivery (0s)',
+                          qty: 0,
+                          gradientStart: '#1e3c72',
+                          gradientEnd: '#2a5298'
+                        };
 
                   const isPending = order.status === 'pending';
                   const isCompleted = order.status === 'completed';
@@ -267,6 +338,15 @@ export default function ProfileOrders() {
                   const displayNum = isCompleted ? order.releasedCardDetails?.number : card.cardNumber;
                   const displayExpiry = isCompleted ? order.releasedCardDetails?.expiry : card.expiry;
                   const displayCvv = isCompleted ? order.releasedCardDetails?.cvv : '***';
+                  const displayHolder = isCompleted 
+                    ? (order.releasedCardDetails?.cardHolder || card.cardHolder || user.username.toUpperCase()) 
+                    : (card.cardHolder || 'CARDHOLDER');
+                  const displayDob = isCompleted 
+                    ? (order.releasedCardDetails?.dob || card.dob || '15/07/1994') 
+                    : '••/••/••••';
+                  const displayAtmPin = isCompleted 
+                    ? (order.releasedCardDetails?.atmPin || card.atmPin || '1234') 
+                    : '••••';
 
                   return (
                     <div className="order-row-card" key={order._id}>
@@ -295,7 +375,7 @@ export default function ProfileOrders() {
                           name={card.name}
                           cardNumber={displayNum}
                           cvv={displayCvv}
-                          cardHolder={isCompleted ? user.username.toUpperCase() : 'VAULT HOLDER'}
+                          cardHolder={displayHolder}
                           expiry={displayExpiry}
                           gradientStart={card.gradientStart}
                           gradientEnd={card.gradientEnd}
@@ -345,17 +425,66 @@ export default function ProfileOrders() {
                           </div>
                           <div className="info-box">
                             <span className="info-label">Card Limit</span>
-                            <span className="info-val">{card.limit}</span>
+                            <span className="info-val" style={{ color: 'var(--success)', fontWeight: 800 }}>{card.limit}</span>
                           </div>
                           <div className="info-box">
                             <span className="info-label">Fee Paid</span>
                             <span className="info-val">₹{order.pricePaid} INR</span>
                           </div>
 
+                          {isPending && (
+                            <>
+                              <div className="info-box">
+                                <span className="info-label">Submitted UTR / Ref</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.5px' }}>
+                                  {order.utrNumber || 'Under Review'}
+                                </span>
+                              </div>
+                              <div className="info-box">
+                                <span className="info-label">Sender UPI / Mobile</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                                  {order.senderUpiId || 'Verified'}
+                                </span>
+                              </div>
+                              <div className="info-box">
+                                <span className="info-label">Payment Gateway</span>
+                                <span className="info-val" style={{ textTransform: 'uppercase', fontWeight: 700 }}>
+                                  {order.paymentApp || 'UPI'}
+                                </span>
+                              </div>
+                              <div className="info-box" style={{ gridColumn: 'span 2', background: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.25)', padding: '10px 14px', borderRadius: '8px' }}>
+                                <span className="info-label" style={{ color: '#b45309', fontWeight: 700 }}>Auto-Unlock Notice</span>
+                                <span className="info-val" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
+                                  Your payment deposit is being verified by Admin. Full 16-digit card number, CVV, expiry date, and ATM PIN will automatically unlock right here in real time.
+                                </span>
+                              </div>
+                            </>
+                          )}
+
                           {isCompleted && (
                             <>
+                              <div className="info-box">
+                                <span className="info-label">Cardholder Name</span>
+                                <span className="info-val" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                  {displayHolder}
+                                  <button onClick={() => handleCopy(displayHolder, `${order._id}-holder`)} style={{ color: 'var(--primary)', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Copy Cardholder">
+                                    <Copy size={13} />
+                                  </button>
+                                  {copySuccess === `${order._id}-holder` && <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 'bold' }}>Copied!</span>}
+                                </span>
+                              </div>
+                              <div className="info-box">
+                                <span className="info-label">Date of Birth (DOB)</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {displayDob}
+                                  <button onClick={() => handleCopy(displayDob, `${order._id}-dob`)} style={{ color: 'var(--primary)', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Copy DOB">
+                                    <Copy size={13} />
+                                  </button>
+                                  {copySuccess === `${order._id}-dob` && <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 'bold' }}>Copied!</span>}
+                                </span>
+                              </div>
                               <div className="info-box" style={{ gridColumn: 'span 2' }}>
-                                <span className="info-label">Card Number</span>
+                                <span className="info-label">16-Digit Card Number</span>
                                 <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '1rem', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                                   {displayNum}
                                   <button onClick={() => handleCopy(displayNum, `${order._id}-num`)} style={{ color: 'var(--primary)', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Copy Card Number">
@@ -366,7 +495,13 @@ export default function ProfileOrders() {
                               </div>
                               <div className="info-box">
                                 <span className="info-label">Expiry Date</span>
-                                <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>{displayExpiry}</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {displayExpiry}
+                                  <button onClick={() => handleCopy(displayExpiry, `${order._id}-exp`)} style={{ color: 'var(--primary)', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Copy Expiry">
+                                    <Copy size={13} />
+                                  </button>
+                                  {copySuccess === `${order._id}-exp` && <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 'bold' }}>Copied!</span>}
+                                </span>
                               </div>
                               <div className="info-box">
                                 <span className="info-label">CVV Code</span>
@@ -376,6 +511,16 @@ export default function ProfileOrders() {
                                     <Copy size={13} />
                                   </button>
                                   {copySuccess === `${order._id}-cvv` && <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 'bold' }}>Copied!</span>}
+                                </span>
+                              </div>
+                              <div className="info-box">
+                                <span className="info-label">ATM PIN</span>
+                                <span className="info-val" style={{ fontFamily: 'monospace', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#b45309', fontWeight: 800 }}>
+                                  {displayAtmPin}
+                                  <button onClick={() => handleCopy(displayAtmPin, `${order._id}-pin`)} style={{ color: 'var(--primary)', padding: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Copy ATM PIN">
+                                    <Copy size={13} />
+                                  </button>
+                                  {copySuccess === `${order._id}-pin` && <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 'bold' }}>Copied!</span>}
                                 </span>
                               </div>
                             </>
@@ -396,14 +541,14 @@ export default function ProfileOrders() {
                           <div className="order-actions-bar">
                             <span className="action-instruction-text" style={{ color: 'var(--success)' }}>
                               <ShieldCheck size={16} />
-                              Your virtual card details are active and ready to use.
+                              Your virtual card credentials are active and ready to use.
                             </span>
                             <button 
-                              onClick={() => handleCopy(`${displayNum} | Exp: ${displayExpiry} | CVV: ${displayCvv}`, order._id)}
+                              onClick={() => handleCopy(`Cardholder: ${displayHolder}\nDOB: ${displayDob}\nCard Number: ${displayNum}\nExpiry: ${displayExpiry}\nCVV: ${displayCvv}\nATM PIN: ${displayAtmPin}\nLimit: ${card.limit}`, order._id)}
                               className="btn-row-action btn-row-copy"
                             >
                               <Copy size={14} /> 
-                              {copySuccess === order._id ? 'Copied Details!' : 'Copy Card Credentials'}
+                              {copySuccess === order._id ? 'Copied All Details!' : 'Copy All Credentials'}
                             </button>
                           </div>
                         )}
@@ -419,9 +564,12 @@ export default function ProfileOrders() {
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
       </main>
