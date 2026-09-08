@@ -7,25 +7,6 @@ import { useAuth } from '@/context/AuthContext';
 import { ChevronDown, User, ShoppingBag, LogOut, Send, Shield, HelpCircle, Home, CreditCard as CardIcon, CheckCircle2 } from 'lucide-react';
 import './Navbar.css';
  
-const InstagramIcon = ({ size = 24, color = 'currentColor', ...props }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-  </svg>
-);
- 
 export default function Navbar({ onOpenAuth }) {
   const { user, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -81,9 +62,6 @@ export default function Navbar({ onOpenAuth }) {
     }
   };
  
-  const telegramLink = dynamicSettings?.telegramLink || 'https://t.me/cardvault_admin';
-  const instagramLink = dynamicSettings?.instagramLink || 'https://instagram.com/cardvault_admin';
- 
   return (
     <>
       {hasAnnouncement && (
@@ -123,33 +101,6 @@ export default function Navbar({ onOpenAuth }) {
             >
               Verify Payment
             </a>
- 
-            {/* Contact Admin Dropdown directly in Navbar */}
-            <div className="nav-dropdown">
-              <span className="nav-link dropdown-trigger">
-                Contact Admin <ChevronDown size={14} />
-              </span>
-              <div className="dropdown-menu">
-                <a
-                  href={telegramLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="dropdown-item"
-                >
-                  <Send size={16} color="#0088cc" />
-                  Telegram Support
-                </a>
-                <a
-                  href={instagramLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="dropdown-item"
-                >
-                  <InstagramIcon size={16} color="#e1306c" />
-                  Instagram Support
-                </a>
-              </div>
-            </div>
           </div>
  
           {/* Right Authentication / Profile Actions */}
@@ -234,9 +185,9 @@ export default function Navbar({ onOpenAuth }) {
             <span>Admin</span>
           </Link>
         )}
-        <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="bottom-tab-item">
-          <Send size={20} />
-          <span>Support</span>
+        <a href="#verify-payment" onClick={(e) => handleNavClick(e, 'verify-payment')} className="bottom-tab-item">
+          <CheckCircle2 size={20} />
+          <span>Verify</span>
         </a>
       </div>
     </>

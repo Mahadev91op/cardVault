@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { X, Mail, Lock, User, AlertCircle, Loader2, CheckCircle, KeyRound, Send } from 'lucide-react';
+import { X, Mail, Lock, User, AlertCircle, Loader2, CheckCircle, KeyRound, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import './AuthModals.css';
 
 export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
@@ -12,6 +12,8 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,6 +28,8 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   }
 
   if (!isOpen) return null;
@@ -38,61 +42,94 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
 
     try {
       if (type === 'signup') {
-        if (!username || !email || !password) {
-          setError('All fields are required');
+        const cleanUser = username.trim();
+        const cleanMail = email.trim().toLowerCase();
+
+        if (!cleanUser || !cleanMail || !password) {
+          setError('All fields are required. Please fill in username, email, and password.');
           setIsSubmitting(false);
           return;
         }
-        const res = await register(username, email, password);
+        if (cleanUser.length < 3) {
+          setError('Username must be at least 3 characters long.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!cleanMail.includes('@') || !cleanMail.includes('.')) {
+          setError('Please enter a valid email address (e.g. name@example.com).');
+          setIsSubmitting(false);
+          return;
+        }
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters long.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        const res = await register(cleanUser, cleanMail, password);
         if (res.success) {
           onClose();
         } else {
           setError(res.error || 'Failed to sign up');
         }
       } else if (type === 'forgot') {
-        if (!username || !email || !password || !confirmPassword) {
-          setError('All fields are required');
+        const cleanUser = username.trim();
+        const cleanMail = email.trim().toLowerCase();
+
+        if (!cleanUser || !cleanMail || !password || !confirmPassword) {
+          setError('All fields are required. Please enter registered username, email, and new password.');
           setIsSubmitting(false);
           return;
         }
         if (password.length < 6) {
-          setError('Password must be at least 6 characters long');
+          setError('New password must be at least 6 characters long.');
           setIsSubmitting(false);
           return;
         }
         if (password !== confirmPassword) {
-          setError('Passwords do not match');
+          setError('Passwords do not match. Please ensure both password fields are identical.');
           setIsSubmitting(false);
           return;
         }
 
-        const res = await resetPassword(username, email, password);
+        const res = await resetPassword(cleanUser, cleanMail, password);
         if (res.success) {
           setSuccessMsg(res.message || 'Password has been reset successfully!');
         } else {
           setError(res.error || 'Failed to reset password');
         }
       } else {
-        if (!email || !password) {
-          setError('Email/Username and Password are required');
+        // Sign In
+        const cleanIdentifier = email.trim();
+        if (!cleanIdentifier) {
+          setError('Please enter your registered Email address or Username.');
           setIsSubmitting(false);
           return;
         }
-        const res = await login(email, password);
+        if (!password) {
+          setError('Please enter your account password.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (password.length < 4) {
+          setError('Password must be at least 4 characters long.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        const res = await login(cleanIdentifier, password);
         if (res.success) {
           onClose();
         } else {
-          setError(res.error || 'Failed to sign in');
+          setError(res.error || 'Failed to sign in. Please verify your credentials.');
         }
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const telegramLink = process.env.NEXT_PUBLIC_TELEGRAM_LINK || 'https://t.me/cardvault_admin';
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -138,8 +175,60 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
             <form className="auth-form" onSubmit={handleSubmit}>
               {error && (
                 <div className="auth-error">
-                  <AlertCircle size={18} />
-                  <span>{error}</span>
+                  <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                    <span>{error}</span>
+                    {type === 'signin' && (error.toLowerCase().includes('password') || error.toLowerCase().includes('forgot')) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError('');
+                          onToggleType('forgot');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--primary)',
+                          padding: 0,
+                          textAlign: 'left',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Reset your password now <ArrowRight size={12} />
+                      </button>
+                    )}
+                    {type === 'signin' && error.toLowerCase().includes('create account') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError('');
+                          onToggleType('signup');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--primary)',
+                          padding: 0,
+                          textAlign: 'left',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Create a new account now <ArrowRight size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -154,7 +243,7 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
                       id="username"
                       type="text"
                       className="form-input"
-                      placeholder="e.g. john_doe"
+                      placeholder="e.g. Mahadev"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
@@ -177,7 +266,7 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
                     id="email"
                     type="text"
                     className="form-input"
-                    placeholder={type === 'signin' ? 'john@example.com or john_doe' : 'john@example.com'}
+                    placeholder={type === 'signin' ? 'Email or Username (e.g. Mahadev)' : 'john@example.com'}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -204,13 +293,22 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
                   <Lock className="input-icon" size={18} />
                   <input
                     id="password"
-                    type="password"
-                    className="form-input"
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-input has-toggle"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                  <button
+                    type="button"
+                    className="input-toggle-icon"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    title={showPassword ? "Hide password" : "Show password"}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
 
@@ -221,13 +319,22 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
                     <KeyRound className="input-icon" size={18} />
                     <input
                       id="confirmPassword"
-                      type="password"
-                      className="form-input"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="form-input has-toggle"
                       placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                     />
+                    <button
+                      type="button"
+                      className="input-toggle-icon"
+                      onClick={() => setShowConfirmPassword(prev => !prev)}
+                      title={showConfirmPassword ? "Hide password" : "Show password"}
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
               )}
@@ -236,13 +343,13 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
                 {isSubmitting ? (
                   <>
                     <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                    Processing...
+                    Verifying Credentials...
                   </>
                 ) : (
                   type === 'signin' 
                     ? 'Sign In' 
                     : type === 'signup' 
-                    ? 'Sign Up' 
+                    ? 'Create Account' 
                     : 'Reset Password'
                 )}
               </button>
@@ -265,12 +372,6 @@ export default function AuthModals({ isOpen, type, onClose, onToggleType }) {
                 <div>
                   Remembered your password? 
                   <span className="auth-toggle-link" onClick={() => onToggleType('signin')}>Sign In</span>
-                </div>
-                <div className="forgot-support-hint">
-                  Need help? 
-                  <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="forgot-telegram-link">
-                    <Send size={12} /> Contact Admin on Telegram
-                  </a>
                 </div>
               </div>
             )}

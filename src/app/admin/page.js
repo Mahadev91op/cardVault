@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import CreditCard from '@/components/CreditCard';
 import {
@@ -27,7 +27,12 @@ import {
   Send,
   SlidersHorizontal,
   Megaphone,
-  Globe
+  Globe,
+  Copy,
+  Check,
+  Eye,
+  FileImage,
+  AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -62,9 +67,7 @@ export default function AdminDashboard() {
   const [cards, setCards] = useState([]);
   const [users, setUsers] = useState([]);
   const [settings, setSettings] = useState({
-    telegramLink: 'https://t.me/cardvault_admin',
-    instagramLink: 'https://instagram.com/cardvault_admin',
-    announcementText: 'Welcome to CardVault! Verify payments via Telegram support.',
+    announcementText: 'Welcome to CardVault! Buy premium virtual cards instantly.',
     announcementActive: true,
     maintenanceMode: false,
     globalDiscount: 0,
@@ -83,6 +86,20 @@ export default function AdminDashboard() {
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [bankVerified, setBankVerified] = useState(false);
+
+  // UTR Copy State
+  const [copiedUtr, setCopiedUtr] = useState('');
+
+  // Payment Screenshot Proof Lightbox Modal
+  const [proofModalOpen, setProofModalOpen] = useState(false);
+  const [proofOrder, setProofOrder] = useState(null);
+
+  // Order Rejection Modal
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectOrder, setRejectOrder] = useState(null);
+  const [rejectReason, setRejectReason] = useState('Payment not credited to bank account');
+  const [customRejectReason, setCustomRejectReason] = useState('');
 
   // Card Form State
   const [cardForm, setCardForm] = useState({
@@ -113,9 +130,11 @@ export default function AdminDashboard() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const loadDashboardData = useCallback(async () => {
+  const prevAdminOrdersCountRef = useRef(null);
+
+  const loadDashboardData = useCallback(async (isSilent = false) => {
     try {
-      setLoadingData(true);
+      if (!isSilent) setLoadingData(true);
       
       const [ordersRes, cardsRes, usersRes, settingsRes] = await Promise.all([
         fetch('/api/admin/orders', { cache: 'no-store' }),
@@ -174,17 +193,55 @@ export default function AdminDashboard() {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      showToast('Failed to load dashboard metrics', 'error');
+      if (!isSilent) showToast('Failed to load dashboard metrics', 'error');
     } finally {
-      setLoadingData(false);
+      if (!isSilent) setLoadingData(false);
     }
   }, [showToast]);
 
+  // Initial dashboard load
   useEffect(() => {
     if (user && user.isAdmin) {
-      loadDashboardData();
+      loadDashboardData(false);
     }
   }, [user, loadDashboardData]);
+
+  // Auto-sync polling every 12 seconds in Admin Panel
+  useEffect(() => {
+    if (!user || !user.isAdmin) return;
+
+    const intervalId = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        try {
+          const res = await fetch('/api/admin/orders', { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.orders)) {
+              const freshOrders = data.orders;
+              const pendingCount = freshOrders.filter((o) => o.status === 'pending').length;
+              if (prevAdminOrdersCountRef.current !== null && pendingCount > prevAdminOrdersCountRef.current) {
+                const diff = pendingCount - prevAdminOrdersCountRef.current;
+                showToast(`🔔 ${diff} new payment verification request${diff > 1 ? 's' : ''} received!`, 'warning');
+              }
+              prevAdminOrdersCountRef.current = pendingCount;
+              setOrders(freshOrders);
+              setStats((prev) => ({
+                ...prev,
+                pendingOrders: pendingCount,
+                totalSales: freshOrders.filter((o) => o.status === 'completed').reduce((acc, curr) => acc + (curr.pricePaid || 0), 0)
+              }));
+            }
+          }
+        } catch (e) {
+          console.error('Auto-sync poll error:', e);
+        }
+      }
+    }, 12000);
+
+    return () => clearInterval(intervalId);
+  }, [user, showToast]);
+
+
 
   // --- Settings Handlers ---
   const handleSettingsChange = (field, value) => {
@@ -215,8 +272,24 @@ export default function AdminDashboard() {
   };
 
   // --- Orders Handlers ---
+  const handleCopyUtr = (utr, e) => {
+    if (e) e.stopPropagation();
+    if (!utr) return;
+    navigator.clipboard.writeText(utr);
+    setCopiedUtr(utr);
+    showToast('UTR copied to clipboard!');
+    setTimeout(() => setCopiedUtr(''), 2000);
+  };
+
+  const handleOpenProof = (order, e) => {
+    if (e) e.stopPropagation();
+    setProofOrder(order);
+    setProofModalOpen(true);
+  };
+
   const handleOpenVerifyModal = (order) => {
     setSelectedOrder(order);
+    setBankVerified(false);
     setVerifyForm({
       number: order.releasedCardDetails?.number || '',
       expiry: order.releasedCardDetails?.expiry || '',
@@ -227,6 +300,10 @@ export default function AdminDashboard() {
 
   const handleApproveOrder = async () => {
     if (!selectedOrder) return;
+    if (!bankVerified) {
+      showToast('Please confirm bank account receipt checkbox before releasing!', 'error');
+      return;
+    }
     setSubmitLoading(true);
 
     try {
@@ -255,8 +332,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRejectOrder = async (orderId) => {
-    if (!confirm('Are you sure you want to REJECT this payment screenshot?')) return;
+  const handleOpenRejectModal = (order, e) => {
+    if (e) e.stopPropagation();
+    setRejectOrder(order);
+    setRejectReason('Payment not credited to bank account');
+    setCustomRejectReason('');
+    setRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectOrder) return;
+    const finalReason = rejectReason === 'Other' ? (customRejectReason.trim() || 'Payment verification failed') : rejectReason;
     setSubmitLoading(true);
 
     try {
@@ -264,14 +350,18 @@ export default function AdminDashboard() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId,
-          status: 'failed'
+          orderId: rejectOrder._id,
+          status: 'failed',
+          rejectionReason: finalReason
         })
       });
       const data = await res.json();
 
       if (res.ok && data.success) {
-        showToast('Order rejected successfully.', 'warning');
+        showToast('Order rejected with reason recorded.', 'warning');
+        setRejectModalOpen(false);
+        setRejectOrder(null);
+        if (proofModalOpen) setProofModalOpen(false);
         loadDashboardData();
       } else {
         showToast(data.error || 'Failed to reject order', 'error');
@@ -280,6 +370,13 @@ export default function AdminDashboard() {
       showToast('Network error occurred', 'error');
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const handleRejectOrder = (orderId) => {
+    const targetOrder = orders.find(o => o._id === orderId);
+    if (targetOrder) {
+      handleOpenRejectModal(targetOrder);
     }
   };
 
@@ -910,6 +1007,7 @@ export default function AdminDashboard() {
                             <tr>
                               <th>Date</th>
                               <th>Buyer</th>
+                              <th>Payment & Proof</th>
                               <th>Card Product</th>
                               <th>Entry Fee</th>
                               <th>Status</th>
@@ -930,11 +1028,46 @@ export default function AdminDashboard() {
                                 <td>
                                   <div style={{ fontWeight: 'bold' }}>{order.userId?.username || 'Deleted User'}</div>
                                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.userId?.email || 'N/A'}</div>
-                                  {order.utrNumber && (
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '4px', fontWeight: 'bold' }}>
-                                      UTR: <code style={{ background: 'rgba(79,70,229,0.06)', padding: '2px 4px', borderRadius: '4px' }}>{order.utrNumber}</code>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                      {order.paymentApp && (
+                                        <span className="app-badge">{order.paymentApp}</span>
+                                      )}
+                                      {order.senderUpiId && (
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                          UPI: <strong style={{ color: 'var(--text-primary)' }}>{order.senderUpiId}</strong>
+                                        </span>
+                                      )}
                                     </div>
-                                  )}
+                                    {order.utrNumber && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <code className="utr-code-chip">{order.utrNumber}</code>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => handleCopyUtr(order.utrNumber, e)}
+                                          className="btn-icon-mini"
+                                          title="Copy UTR to Clipboard"
+                                        >
+                                          {copiedUtr === order.utrNumber ? <Check size={12} color="var(--success)" /> : <Copy size={12} />}
+                                        </button>
+                                      </div>
+                                    )}
+                                    {order.paymentScreenshot ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleOpenProof(order, e)}
+                                        className="btn-view-proof"
+                                      >
+                                        <Eye size={12} /> View Screenshot Proof
+                                      </button>
+                                    ) : (
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                        No screenshot uploaded
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
                                 <td>
                                   <div style={{ fontWeight: 'bold' }}>{order.cardId?.name || 'Deleted Card'}</div>
@@ -946,7 +1079,16 @@ export default function AdminDashboard() {
                                 <td>
                                   {order.status === 'pending' && <span className="status-pill status-pending">Pending Verification</span>}
                                   {order.status === 'completed' && <span className="status-pill status-completed">Completed</span>}
-                                  {order.status === 'failed' && <span className="status-pill status-failed">Rejected</span>}
+                                  {order.status === 'failed' && (
+                                    <div>
+                                      <span className="status-pill status-failed">Rejected</span>
+                                      {order.rejectionReason && (
+                                        <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: '4px', maxWidth: '160px', wordBreak: 'break-word', fontWeight: 600 }}>
+                                          {order.rejectionReason}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </td>
                                 <td>
                                   <div className="admin-actions">
@@ -955,7 +1097,7 @@ export default function AdminDashboard() {
                                         <button onClick={() => handleOpenVerifyModal(order)} className="btn-admin-action btn-admin-approve">
                                           <CheckCircle size={14} /> Verify & Release
                                         </button>
-                                        <button onClick={() => handleRejectOrder(order._id)} className="btn-admin-action btn-admin-reject">
+                                        <button onClick={(e) => handleOpenRejectModal(order, e)} className="btn-admin-action btn-admin-reject">
                                           <XCircle size={14} /> Reject
                                         </button>
                                       </>
@@ -966,7 +1108,7 @@ export default function AdminDashboard() {
                                             Released: {order.releasedCardDetails?.number?.slice(-4) || '••••'}
                                           </span>
                                         ) : (
-                                          'Payment invalid'
+                                          <span style={{ color: 'var(--accent)' }}>Rejected</span>
                                         )}
                                       </div>
                                     )}
@@ -995,10 +1137,46 @@ export default function AdminDashboard() {
                                 <span className="label">Buyer:</span>
                                 <span className="val">{order.userId?.username || 'Deleted User'} ({order.userId?.email || 'N/A'})</span>
                               </div>
+                              {order.paymentApp && (
+                                <div className="mobile-card-row">
+                                  <span className="label">App Used:</span>
+                                  <span className="val"><span className="app-badge">{order.paymentApp}</span></span>
+                                </div>
+                              )}
+                              {order.senderUpiId && (
+                                <div className="mobile-card-row">
+                                  <span className="label">Sender UPI:</span>
+                                  <span className="val font-bold">{order.senderUpiId}</span>
+                                </div>
+                              )}
                               {order.utrNumber && (
-                                <div className="mobile-card-row" style={{ background: 'rgba(79, 70, 229, 0.04)', padding: '4px 6px', borderRadius: '4px', marginTop: '4px' }}>
+                                <div className="mobile-card-row" style={{ background: 'rgba(79, 70, 229, 0.04)', padding: '6px 8px', borderRadius: '6px', marginTop: '4px', alignItems: 'center' }}>
                                   <span className="label" style={{ color: 'var(--primary)' }}>UTR / Ref No:</span>
-                                  <span className="val font-bold" style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{order.utrNumber}</span>
+                                  <span className="val font-bold" style={{ color: 'var(--primary)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {order.utrNumber}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleCopyUtr(order.utrNumber, e)}
+                                      className="btn-icon-mini"
+                                      title="Copy UTR"
+                                    >
+                                      {copiedUtr === order.utrNumber ? <Check size={12} color="var(--success)" /> : <Copy size={12} />}
+                                    </button>
+                                  </span>
+                                </div>
+                              )}
+                              {order.paymentScreenshot && (
+                                <div className="mobile-card-row" style={{ marginTop: '4px' }}>
+                                  <span className="label">Proof:</span>
+                                  <span className="val">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenProof(order, e)}
+                                      className="btn-view-proof"
+                                    >
+                                      <Eye size={12} /> View Screenshot Proof
+                                    </button>
+                                  </span>
                                 </div>
                               )}
                               <div className="mobile-card-row">
@@ -1009,6 +1187,12 @@ export default function AdminDashboard() {
                                 <span className="label">Entry Fee:</span>
                                 <span className="val font-bold">₹{order.pricePaid} INR</span>
                               </div>
+                              {order.status === 'failed' && order.rejectionReason && (
+                                <div className="mobile-card-row" style={{ background: 'rgba(244, 63, 94, 0.06)', padding: '6px 8px', borderRadius: '6px' }}>
+                                  <span className="label" style={{ color: 'var(--accent)' }}>Reason:</span>
+                                  <span className="val" style={{ color: 'var(--accent)', fontWeight: 600 }}>{order.rejectionReason}</span>
+                                </div>
+                              )}
                               {order.status === 'completed' && (
                                 <div className="mobile-card-row release-details">
                                   <span className="label">Released Card:</span>
@@ -1023,7 +1207,7 @@ export default function AdminDashboard() {
                                 <button onClick={() => handleOpenVerifyModal(order)} className="mobile-btn mobile-btn-approve">
                                   <CheckCircle size={14} /> Verify & Release
                                 </button>
-                                <button onClick={() => handleRejectOrder(order._id)} className="mobile-btn mobile-btn-reject">
+                                <button onClick={(e) => handleOpenRejectModal(order, e)} className="mobile-btn mobile-btn-reject">
                                   <XCircle size={14} /> Reject
                                 </button>
                               </div>
@@ -1278,33 +1462,6 @@ export default function AdminDashboard() {
 
                 <form className="admin-form settings-form-panel" onSubmit={handleSaveSettings} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div className="settings-section-title" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                    <SlidersHorizontal size={16} color="var(--primary)" /> Support & Communication Handles
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label className="admin-form-label">Telegram Support Link</label>
-                    <input
-                      type="text"
-                      className="admin-form-input"
-                      value={settings.telegramLink}
-                      onChange={(e) => handleSettingsChange('telegramLink', e.target.value)}
-                      required
-                    />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Defines the link used by customers to verify screenshot receipts.</span>
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label className="admin-form-label">Instagram Support Link</label>
-                    <input
-                      type="text"
-                      className="admin-form-input"
-                      value={settings.instagramLink}
-                      onChange={(e) => handleSettingsChange('instagramLink', e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="settings-section-title" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', marginTop: '10px' }}>
                     <Megaphone size={16} color="var(--primary)" /> Announcement Alert Banner
                   </div>
 
@@ -1594,26 +1751,87 @@ export default function AdminDashboard() {
       {/* --- PAYMENT VERIFY & RELEASE MODAL --- */}
       {verifyModalOpen && selectedOrder && (
         <div className="admin-modal-overlay" onClick={() => setVerifyModalOpen(false)}>
-          <div className="admin-modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+          <div className="admin-modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
             <div className="admin-modal-content">
               <div className="admin-modal-header">
-                <h3 className="admin-modal-title">Verify Payment & Release</h3>
+                <h3 className="admin-modal-title">Verify Payment &amp; Release</h3>
                 <span className="admin-modal-close" onClick={() => setVerifyModalOpen(false)}>
                   <XCircle size={20} />
                 </span>
               </div>
 
-              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '24px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div>Order ID: <strong style={{ fontFamily: 'monospace' }}>{selectedOrder._id}</strong></div>
-                <div>Buyer: <strong>{selectedOrder.userId?.username} ({selectedOrder.userId?.email})</strong></div>
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '18px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Buyer: <strong>{selectedOrder.userId?.username}</strong> ({selectedOrder.userId?.email})</span>
+                  {selectedOrder.paymentApp && <span className="app-badge">{selectedOrder.paymentApp}</span>}
+                </div>
                 <div>Product: <strong>{selectedOrder.cardId?.name} ({selectedOrder.cardId?.type})</strong></div>
-                <div>Due Payment: <strong style={{ color: 'var(--primary)' }}>₹{selectedOrder.pricePaid} INR</strong></div>
+                {selectedOrder.senderUpiId && (
+                  <div>Sender UPI: <strong style={{ color: 'var(--text-primary)' }}>{selectedOrder.senderUpiId}</strong></div>
+                )}
+                <div>Due Amount: <strong style={{ color: 'var(--primary)', fontSize: '1rem' }}>₹{selectedOrder.pricePaid} INR</strong></div>
                 {selectedOrder.utrNumber && (
-                  <div>Payment UTR: <strong style={{ color: 'var(--success)', fontFamily: 'monospace', background: 'rgba(16, 185, 129, 0.06)', padding: '2px 6px', borderRadius: '4px' }}>{selectedOrder.utrNumber}</strong></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                    <span>UTR Ref:</span>
+                    <code className="utr-code-chip">{selectedOrder.utrNumber}</code>
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyUtr(selectedOrder.utrNumber, e)}
+                      className="btn-icon-mini"
+                      title="Copy UTR"
+                    >
+                      {copiedUtr === selectedOrder.utrNumber ? <Check size={12} color="var(--success)" /> : <Copy size={12} />}
+                    </button>
+                  </div>
+                )}
+                {selectedOrder.paymentScreenshot ? (
+                  <div style={{ marginTop: '8px', background: '#0f172a', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '6px', fontWeight: 600 }}>Payment Receipt Screenshot:</div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selectedOrder.paymentScreenshot}
+                      alt="Receipt"
+                      style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '6px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)' }}
+                      onClick={(e) => handleOpenProof(selectedOrder, e)}
+                      title="Click to view full screen"
+                    />
+                    <div style={{ marginTop: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenProof(selectedOrder, e)}
+                        className="btn-view-proof"
+                      >
+                        <Eye size={12} /> View Full Screen
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '4px' }}>
+                    No screenshot was uploaded for this order.
+                  </div>
                 )}
               </div>
 
-              <div className="admin-form" style={{ gap: '14px' }}>
+              {/* Anti-Fraud Bank Check Notice */}
+              <div className="verify-bank-notice">
+                <AlertTriangle size={18} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.4 }}>
+                  <strong>Mandatory Bank Check:</strong> Check your bank/UPI app statement to confirm that ₹{selectedOrder.pricePaid} is actually credited with UTR {selectedOrder.utrNumber}.
+                </div>
+              </div>
+
+              {/* Confirmation Checkbox */}
+              <label className="bank-confirmation-checkbox">
+                <input
+                  type="checkbox"
+                  id="bankVerifiedCheckbox"
+                  checked={bankVerified}
+                  onChange={(e) => setBankVerified(e.target.checked)}
+                />
+                <span>I confirm that ₹{selectedOrder.pricePaid} INR has been credited into my bank/UPI account.</span>
+              </label>
+
+              <div className="admin-form" style={{ gap: '14px', marginTop: '16px' }}>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Card Credentials Release Form</h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '-8px' }}>
                   Please enter or verify the actual credentials to be released to this user. We have pre-filled them with auto-generated safe values.
@@ -1664,9 +1882,184 @@ export default function AdminDashboard() {
                     className="btn-primary" 
                     style={{ background: 'var(--success)' }} 
                     onClick={handleApproveOrder}
-                    disabled={submitLoading || !verifyForm.number || !verifyForm.expiry || !verifyForm.cvv}
+                    disabled={submitLoading || !bankVerified || !verifyForm.number || !verifyForm.expiry || !verifyForm.cvv}
                   >
-                    {submitLoading ? <Loader2 size={16} className="animate-spin" /> : 'Confirm Release'}
+                    {submitLoading ? <Loader2 size={16} className="animate-spin" /> : 'Confirm & Release'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- PAYMENT PROOF LIGHTBOX MODAL --- */}
+      {proofModalOpen && proofOrder && (
+        <div className="admin-modal-overlay" onClick={() => setProofModalOpen(false)}>
+          <div className="admin-modal-container proof-lightbox-container" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-content">
+              <div className="admin-modal-header">
+                <div>
+                  <h3 className="admin-modal-title">Payment Screenshot Proof</h3>
+                  <span className="admin-subtitle">Order #{proofOrder._id.slice(-6)} • ₹{proofOrder.pricePaid} INR</span>
+                </div>
+                <span className="admin-modal-close" onClick={() => setProofModalOpen(false)}>
+                  <XCircle size={20} />
+                </span>
+              </div>
+
+              {/* Info Badges Row */}
+              <div className="proof-info-grid">
+                <div className="proof-info-item">
+                  <span className="proof-label">Buyer</span>
+                  <span className="proof-value font-bold">{proofOrder.userId?.username} ({proofOrder.userId?.email})</span>
+                </div>
+                <div className="proof-info-item">
+                  <span className="proof-label">Payment App</span>
+                  <span className="proof-value">
+                    <span className="app-badge">{proofOrder.paymentApp || 'UPI'}</span>
+                  </span>
+                </div>
+                <div className="proof-info-item">
+                  <span className="proof-label">Sender UPI / Phone</span>
+                  <span className="proof-value font-bold">{proofOrder.senderUpiId || 'Not provided'}</span>
+                </div>
+                <div className="proof-info-item">
+                  <span className="proof-label">Submitted UTR</span>
+                  <span className="proof-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <code className="utr-code-chip">{proofOrder.utrNumber}</code>
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyUtr(proofOrder.utrNumber, e)}
+                      className="btn-icon-mini"
+                      title="Copy UTR"
+                    >
+                      {copiedUtr === proofOrder.utrNumber ? <Check size={12} color="var(--success)" /> : <Copy size={12} />}
+                    </button>
+                  </span>
+                </div>
+              </div>
+
+              {/* Screenshot Image Viewer */}
+              <div className="proof-image-wrapper">
+                {proofOrder.paymentScreenshot ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={proofOrder.paymentScreenshot}
+                    alt="Payment Receipt Proof"
+                    className="proof-lightbox-image"
+                  />
+                ) : (
+                  <div className="no-proof-placeholder">
+                    <FileImage size={48} color="var(--text-secondary)" />
+                    <p>No payment screenshot was uploaded for this order.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="admin-form-footer" style={{ marginTop: '20px', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button type="button" className="btn-secondary" onClick={() => setProofModalOpen(false)}>
+                  Close
+                </button>
+                {proofOrder.status === 'pending' && (
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className="btn-admin-action btn-admin-reject"
+                      onClick={(e) => {
+                        setProofModalOpen(false);
+                        handleOpenRejectModal(proofOrder, e);
+                      }}
+                    >
+                      <XCircle size={14} /> Reject Payment
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ background: 'var(--success)' }}
+                      onClick={() => {
+                        setProofModalOpen(false);
+                        handleOpenVerifyModal(proofOrder);
+                      }}
+                    >
+                      <CheckCircle size={14} /> Proceed to Release
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- ORDER REJECTION MODAL --- */}
+      {rejectModalOpen && rejectOrder && (
+        <div className="admin-modal-overlay" onClick={() => setRejectModalOpen(false)}>
+          <div className="admin-modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="admin-modal-content">
+              <div className="admin-modal-header">
+                <div>
+                  <h3 className="admin-modal-title" style={{ color: 'var(--accent)' }}>Reject Payment Request</h3>
+                  <span className="admin-subtitle">Order #{rejectOrder._id.slice(-6)} • ₹{rejectOrder.pricePaid} INR</span>
+                </div>
+                <span className="admin-modal-close" onClick={() => setRejectModalOpen(false)}>
+                  <XCircle size={20} />
+                </span>
+              </div>
+
+              <div style={{ background: 'rgba(244, 63, 94, 0.05)', border: '1px solid rgba(244, 63, 94, 0.2)', padding: '14px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.85rem' }}>
+                <div>Buyer: <strong>{rejectOrder.userId?.username}</strong></div>
+                <div>UTR: <code style={{ fontWeight: 'bold' }}>{rejectOrder.utrNumber}</code></div>
+                <div style={{ marginTop: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                  Please select a reason for rejecting this payment. The reason will be displayed to the buyer in their order history so they can retry with genuine payment details.
+                </div>
+              </div>
+
+              <div className="admin-form">
+                <div className="admin-form-group">
+                  <label className="admin-form-label">Rejection Reason</label>
+                  <select
+                    className="admin-form-select"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                  >
+                    <option value="Payment not credited to bank account">Payment not credited to bank account</option>
+                    <option value="Invalid / Fake UTR number">Invalid / Fake UTR number</option>
+                    <option value="Payment screenshot is blurred or unreadable">Payment screenshot is blurred or unreadable</option>
+                    <option value="Amount received does not match order entry fee">Amount received does not match order entry fee</option>
+                    <option value="Duplicate UTR number submitted">Duplicate UTR number submitted</option>
+                    <option value="Other">Other (Type custom reason)</option>
+                  </select>
+                </div>
+
+                {rejectReason === 'Other' && (
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Custom Reason for Buyer</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="Explain why payment was rejected..."
+                      value={customRejectReason}
+                      onChange={(e) => setCustomRejectReason(e.target.value)}
+                      maxLength={150}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="admin-form-footer" style={{ marginTop: '16px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setRejectModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ background: 'var(--accent)' }}
+                    onClick={handleConfirmReject}
+                    disabled={submitLoading || (rejectReason === 'Other' && !customRejectReason.trim())}
+                  >
+                    {submitLoading ? <Loader2 size={16} className="animate-spin" /> : 'Confirm Rejection'}
                   </button>
                 </div>
               </div>

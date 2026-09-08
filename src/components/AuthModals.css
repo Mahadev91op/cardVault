@@ -130,6 +130,30 @@
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
 }
 
+.form-input.has-toggle {
+  padding-right: 44px;
+}
+
+.input-toggle-icon {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.input-toggle-icon:hover {
+  color: var(--text-primary);
+  background: rgba(15, 23, 42, 0.05);
+}
+
 .auth-error {
   background: rgba(244, 63, 94, 0.08);
   border: 1px solid rgba(244, 63, 94, 0.2);

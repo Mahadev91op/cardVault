@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Order from '@/models/Order';
+import Card from '@/models/Card';
+import User from '@/models/User';
 import { getUserFromRequest } from '@/lib/auth';
+import { sendOrderApprovedEmail, sendOrderRejectedEmail } from '@/lib/emailService';
 
 // GET: Fetch all orders for administration
 export async function GET(request) {
@@ -35,7 +38,7 @@ export async function PUT(request) {
       return NextResponse.json({ success: false, error: 'Forbidden. Admin access required.' }, { status: 403 });
     }
 
-    const { orderId, status, releasedCardDetails } = await request.json();
+    const { orderId, status, releasedCardDetails, rejectionReason } = await request.json();
 
     if (!orderId || !status) {
       return NextResponse.json({ success: false, error: 'Order ID and status are required' }, { status: 400 });
@@ -59,9 +62,36 @@ export async function PUT(request) {
         expiry: releasedCardDetails.expiry,
         cvv: releasedCardDetails.cvv,
       };
+      order.rejectionReason = '';
+    } else if (status === 'failed') {
+      order.rejectionReason = rejectionReason || 'Payment verification failed: UTR/payment not found in bank account.';
     }
     
     await order.save();
+
+    // Trigger buyer email notification asynchronously (fire & log)
+    Order.findById(orderId)
+      .populate('userId', 'username email')
+      .populate('cardId')
+      .then((populatedOrder) => {
+        if (!populatedOrder || !populatedOrder.userId) return;
+        if (status === 'completed') {
+          sendOrderApprovedEmail({
+            order: populatedOrder,
+            buyer: populatedOrder.userId,
+            card: populatedOrder.cardId,
+            releasedCardDetails: populatedOrder.releasedCardDetails,
+          }).catch((err) => console.error('Buyer approval email dispatch failed:', err));
+        } else if (status === 'failed') {
+          sendOrderRejectedEmail({
+            order: populatedOrder,
+            buyer: populatedOrder.userId,
+            card: populatedOrder.cardId,
+            rejectionReason: populatedOrder.rejectionReason,
+          }).catch((err) => console.error('Buyer rejection email dispatch failed:', err));
+        }
+      })
+      .catch((err) => console.error('Populating order for email notification failed:', err));
 
     return NextResponse.json({ 
       success: true, 

@@ -23,6 +23,26 @@ const OrderSchema = new mongoose.Schema({
   utrNumber: {
     type: String,
     default: '',
+    trim: true,
+  },
+  senderUpiId: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  paymentApp: {
+    type: String,
+    enum: ['phonepe', 'gpay', 'paytm', 'bhim', 'other', ''],
+    default: 'other',
+  },
+  paymentScreenshot: {
+    type: String, // Base64 Data URL
+    default: '',
+  },
+  rejectionReason: {
+    type: String,
+    default: '',
+    trim: true,
   },
   releasedCardDetails: {
     number: String,

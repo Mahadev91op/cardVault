@@ -16,7 +16,7 @@ const SettingsSchema = new mongoose.Schema({
   },
   announcementText: {
     type: String,
-    default: 'Welcome to CardVault! Verify payments via Telegram support.',
+    default: 'Welcome to CardVault! Buy premium virtual cards instantly.',
   },
   announcementActive: {
     type: Boolean,

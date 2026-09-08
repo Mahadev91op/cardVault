@@ -22,26 +22,33 @@ export async function POST(request) {
       );
     }
 
-    // Find user matching both username and email (case-insensitive for email, trim both)
+    // Find user matching username and email with clear diagnosis
     const trimmedUsername = username.trim();
     const trimmedEmail = email.trim().toLowerCase();
+    const safeRegex = trimmedUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    const user = await User.findOne({
-      username: { $regex: new RegExp(`^${trimmedUsername}$`, 'i') },
-      email: trimmedEmail,
+    const userByUsername = await User.findOne({
+      username: { $regex: new RegExp(`^${safeRegex}$`, 'i') },
     });
 
-    if (!user) {
+    if (!userByUsername) {
       return NextResponse.json(
-        { error: 'No account found matching this username and email combination' },
+        { error: `No registered account found with username "${trimmedUsername}". Please check spelling.` },
         { status: 404 }
+      );
+    }
+
+    if (userByUsername.email.toLowerCase() !== trimmedEmail) {
+      return NextResponse.json(
+        { error: `The email "${trimmedEmail}" does not match the registered email for user "${userByUsername.username}".` },
+        { status: 400 }
       );
     }
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
+    userByUsername.password = hashedPassword;
+    await userByUsername.save();
 
     return NextResponse.json(
       {

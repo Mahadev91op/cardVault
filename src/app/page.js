@@ -23,24 +23,6 @@ import {
   Info
 } from 'lucide-react';
 
-const InstagramIcon = ({ size = 24, color = 'currentColor', ...props }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-  </svg>
-);
 import confetti from 'canvas-confetti';
 import gsap from 'gsap';
 import './page.css';
@@ -152,17 +134,18 @@ export default function Home() {
     setPaymentModalOpen(true);
   };
 
-  const handleConfirmPayment = async (utrNumber) => {
+  const handleConfirmPayment = async (paymentData) => {
     if (!selectedPaymentCard) return;
 
     try {
+      const payload = typeof paymentData === 'string'
+        ? { cardId: selectedPaymentCard._id, utrNumber: paymentData }
+        : { cardId: selectedPaymentCard._id, ...paymentData };
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cardId: selectedPaymentCard._id,
-          utrNumber: utrNumber
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
 
@@ -192,9 +175,6 @@ export default function Home() {
 
   // Filter cards by selected tab
   const filteredCards = cards.filter(card => card.type === selectedType);
-
-  const telegramLink = dynamicSettings?.telegramLink || 'https://t.me/cardvault_admin';
-  const instagramLink = dynamicSettings?.instagramLink || 'https://instagram.com/cardvault_admin';
 
   return (
     <>
@@ -439,19 +419,10 @@ export default function Home() {
               <div className="step-icon-wrapper">
                 <Send size={32} />
               </div>
-              <h3 className="step-title">2. Send Screenshot</h3>
+              <h3 className="step-title">2. Submit Verification Details</h3>
               <p className="step-desc">
-                Transfer the exact entry fee amount using your chosen method and send the payment transaction screenshot 
-                directly to our Admin support on Telegram or Instagram.
+                Scan the dynamic QR code or tap to pay with your UPI app. Upload your payment screenshot and enter your 12-digit UTR reference directly during checkout.
               </p>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-                <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem', gap: '6px' }}>
-                  <Send size={14} color="#0088cc" /> Telegram
-                </a>
-                <a href={instagramLink} target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem', gap: '6px' }}>
-                  <InstagramIcon size={14} color="#e1306c" /> Instagram
-                </a>
-              </div>
             </div>
 
             {/* Step 3 */}
@@ -462,8 +433,8 @@ export default function Home() {
               </div>
               <h3 className="step-title">3. Admin Verification</h3>
               <p className="step-desc">
-                Once our Admin verifies the transaction screenshot, your card details (Number, Expiry, CVV) will be instantly 
-                released and visible under your Profile&apos;s &quot;My Orders&quot; tab.
+                Once our Admin verifies the transaction against bank deposits, your virtual card credentials (Number, Expiry, CVV) are instantly 
+                released in your &quot;My Orders&quot; dashboard.
               </p>
             </div>
           </div>
@@ -491,19 +462,18 @@ export default function Home() {
               <div className="footer-links">
                 <a href="#marketplace" className="footer-link">Virtual Marketplace</a>
                 <a href="#verify-payment" className="footer-link">Verify Payment Flow</a>
-                <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="footer-link">Telegram Admin Support</a>
-                <a href={instagramLink} target="_blank" rel="noopener noreferrer" className="footer-link">Instagram Support</a>
+                <a href="/profile/orders" className="footer-link">My Orders &amp; Receipts</a>
               </div>
             </div>
 
             <div>
-              <h4 className="footer-column-title">Support & Security</h4>
+              <h4 className="footer-column-title">Support &amp; Security</h4>
               <p className="footer-desc" style={{ marginBottom: '12px' }}>
-                Have questions or issues? Talk directly with our administrator for quick order resolution.
+                All transactions are protected with 256-bit SSL encryption and verified directly on the platform.
               </p>
-              <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.85rem' }}>
-                <Send size={14} /> Telegram Helpdesk
-              </a>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(79, 70, 229, 0.08)', color: 'var(--primary)', padding: '10px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700 }}>
+                <Shield size={16} /> Automated Verification
+              </div>
             </div>
           </div>
 
@@ -555,14 +525,19 @@ export default function Home() {
       />
 
       {/* UPI Payment Modal */}
-      <PaymentModal
-        isOpen={paymentModalOpen}
-        onClose={() => setPaymentModalOpen(false)}
-        card={selectedPaymentCard}
-        upiId={dynamicSettings?.upiId}
-        usdToInrRate={dynamicSettings?.usdToInrRate}
-        onSubmit={handleConfirmPayment}
-      />
+      {paymentModalOpen && selectedPaymentCard && (
+        <PaymentModal
+          isOpen={paymentModalOpen}
+          onClose={() => {
+            setPaymentModalOpen(false);
+            setSelectedPaymentCard(null);
+          }}
+          card={selectedPaymentCard}
+          upiId={dynamicSettings?.upiId}
+          usdToInrRate={dynamicSettings?.usdToInrRate}
+          onSubmit={handleConfirmPayment}
+        />
+      )}
 
       <style jsx global>{`
         @keyframes spin {

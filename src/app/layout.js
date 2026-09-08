@@ -5,6 +5,11 @@ export const metadata = {
   title: 'CardVault - Secure Premium Virtual Cards Marketplace',
   description: 'Buy premium virtual Visa, Mastercard, and Rupay cards instantly. Manage limits, enjoy instant delivery, secure online transactions, and easy payment verification.',
   keywords: 'virtual credit cards, vcc, visa virtual card, mastercard virtual, rupay virtual card, online payment cards, buy virtual card',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({ children }) {

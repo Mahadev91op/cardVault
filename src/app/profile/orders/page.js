@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import AuthModals from '@/components/AuthModals';
@@ -10,14 +10,13 @@ import {
   Clock, 
   CheckCircle, 
   XCircle, 
-  Send, 
   Copy, 
   AlertCircle, 
   ArrowLeft,
   Lock,
-  ChevronRight,
+  RefreshCw,
   ShieldCheck,
-  ExternalLink
+  Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
 import './page.css';
@@ -33,29 +32,84 @@ export default function ProfileOrders() {
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [copySuccess, setCopySuccess] = useState(null);
+  const [celebrationToast, setCelebrationToast] = useState(null);
+  const [isLiveSyncing, setIsLiveSyncing] = useState(false);
+  const prevOrdersRef = useRef(null);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (isSilent = false) => {
     try {
-      setLoadingOrders(true);
-      const res = await fetch('/api/orders');
+      if (!isSilent) setLoadingOrders(true);
+      const res = await fetch('/api/orders', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (data.success) {
-          setOrders(data.orders);
+        if (data.success && Array.isArray(data.orders)) {
+          const freshOrders = data.orders;
+
+          // Check if any pending order transitioned to completed or failed
+          if (prevOrdersRef.current) {
+            freshOrders.forEach((newOrder) => {
+              const oldOrder = prevOrdersRef.current.find((o) => o._id === newOrder._id);
+              if (oldOrder && oldOrder.status === 'pending') {
+                if (newOrder.status === 'completed') {
+                  setCelebrationToast({
+                    type: 'completed',
+                    title: '🎉 Payment Verified & Card Released!',
+                    desc: `Your ${newOrder.cardId?.name || 'Virtual Card'} has been approved! Credentials are now unlocked in your vault.`
+                  });
+                } else if (newOrder.status === 'failed') {
+                  setCelebrationToast({
+                    type: 'failed',
+                    title: '⚠️ Order Payment Update',
+                    desc: newOrder.rejectionReason || 'Payment verification could not be completed.'
+                  });
+                }
+              }
+            });
+          }
+
+          prevOrdersRef.current = freshOrders;
+          setOrders(freshOrders);
         }
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
-      setLoadingOrders(false);
+      if (!isSilent) setLoadingOrders(false);
     }
   }, []);
 
+  // Initial load
   useEffect(() => {
     if (user) {
-      fetchOrders();
+      fetchOrders(false);
     }
   }, [user, fetchOrders]);
+
+  // Auto-dismiss notification toast after 7 seconds
+  useEffect(() => {
+    if (!celebrationToast) return;
+    const timer = setTimeout(() => setCelebrationToast(null), 7000);
+    return () => clearTimeout(timer);
+  }, [celebrationToast]);
+
+  // Background Live Polling when there are pending orders
+  useEffect(() => {
+    if (!user) return;
+
+    const hasPending = orders.some((o) => o.status === 'pending');
+    setIsLiveSyncing(hasPending);
+
+    if (!hasPending) return;
+
+    const intervalId = setInterval(() => {
+      // Only poll when browser window is visible
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchOrders(true);
+      }
+    }, 8000);
+
+    return () => clearInterval(intervalId);
+  }, [user, orders, fetchOrders]);
 
   const handleOpenAuth = (type) => {
     setAuthType(type);
@@ -71,8 +125,6 @@ export default function ProfileOrders() {
     setCopySuccess(id);
     setTimeout(() => setCopySuccess(null), 2000);
   };
-
-  const telegramLink = process.env.NEXT_PUBLIC_TELEGRAM_LINK || 'https://t.me/cardvault_admin';
 
   if (authLoading) {
     return (
@@ -100,12 +152,40 @@ export default function ProfileOrders() {
     <>
       <Navbar onOpenAuth={handleOpenAuth} />
 
+      {/* Floating Status Notification Toast */}
+      {celebrationToast && (
+        <div className={`order-celebration-toast toast-${celebrationToast.type}`}>
+          <div className="toast-icon-wrap">
+            {celebrationToast.type === 'completed' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+          </div>
+          <div className="toast-content">
+            <div className="toast-title">{celebrationToast.title}</div>
+            <div className="toast-desc">{celebrationToast.desc}</div>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => setCelebrationToast(null)} 
+            className="toast-close-btn"
+            aria-label="Dismiss notification"
+          >
+            <XCircle size={16} />
+          </button>
+        </div>
+      )}
+
       <main className="container orders-page-container">
         {/* Breadcrumb / Back button */}
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)' }}>
             <ArrowLeft size={16} /> Back to Marketplace
           </Link>
+
+          {isLiveSyncing && (
+            <div className="live-sync-indicator" title="Automatically checking for admin verification every 8 seconds">
+              <span className="live-pulse-dot"></span>
+              <span>Live Sync Active</span>
+            </div>
+          )}
         </div>
 
         {!user ? (
@@ -132,9 +212,17 @@ export default function ProfileOrders() {
                   Manage and retrieve your premium virtual Visa, Mastercard, and Rupay cards.
                 </p>
               </div>
-              <button onClick={fetchOrders} className="btn-secondary" style={{ padding: '8px 18px', fontSize: '0.9rem' }}>
-                Refresh Vault
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {isLiveSyncing && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <RefreshCw size={12} className="animate-spin" style={{ animation: 'spin 3s linear infinite' }} />
+                    Auto-syncing
+                  </span>
+                )}
+                <button onClick={() => fetchOrders(false)} className="btn-secondary" style={{ padding: '8px 18px', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <RefreshCw size={14} /> Refresh Vault
+                </button>
+              </div>
             </div>
 
             {loadingOrders ? (
@@ -299,16 +387,8 @@ export default function ProfileOrders() {
                           <div className="order-actions-bar">
                             <span className="action-instruction-text">
                               <AlertCircle size={16} color="var(--warning)" />
-                              Send screenshot of transaction (₹{order.pricePaid} INR) to verify.
+                              Payment verification in progress. Admin is checking bank deposit for ₹{order.pricePaid} INR.
                             </span>
-                            <a 
-                              href={telegramLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="btn-row-action btn-row-telegram"
-                            >
-                              <Send size={14} /> Verify on Telegram
-                            </a>
                           </div>
                         )}
 
@@ -329,20 +409,11 @@ export default function ProfileOrders() {
                         )}
 
                         {isFailed && (
-                          <div className="order-actions-bar">
+                          <div className="order-actions-bar" style={{ background: 'rgba(244, 63, 94, 0.06)', borderTop: '1px solid rgba(244, 63, 94, 0.2)' }}>
                             <span className="action-instruction-text" style={{ color: 'var(--accent)' }}>
                               <AlertCircle size={16} />
-                              This payment screenshot was invalid or rejected.
+                              {order.rejectionReason || 'Payment verification was rejected. Please verify your UTR and retry checkout.'}
                             </span>
-                            <a 
-                              href={telegramLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="btn-row-action btn-row-telegram"
-                              style={{ background: 'var(--text-primary)' }}
-                            >
-                              Ask Administrator
-                            </a>
                           </div>
                         )}
                       </div>
